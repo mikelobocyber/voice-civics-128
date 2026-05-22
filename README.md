@@ -2,6 +2,8 @@
 
 Practice the updated 2025 USCIS naturalization civics test (128 questions) by speaking your answers out loud — speech recognition, state-specific answers, no install needed.
 
+**Live app:** [mikelobocyber.github.io/voice-civics-128](https://mikelobocyber.github.io/voice-civics-128/)
+
 Built by [mikelobocyber](https://github.com/mikelobocyber).
 
 ![HTML](https://img.shields.io/badge/HTML-single%20file-orange) ![License](https://img.shields.io/badge/license-MIT-green) ![No dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
@@ -23,21 +25,25 @@ Built by [mikelobocyber](https://github.com/mikelobocyber).
 
 ## How to use it
 
-**Option 1 — Download and open locally**
+**Option 1 — Use the live site**
 
-1. Download `civics-quiz.html`
+Open [mikelobocyber.github.io/voice-civics-128](https://mikelobocyber.github.io/voice-civics-128/) in Chrome or Edge on any device. No download needed.
+
+**Option 2 — Download and open locally**
+
+1. Download `index.html`
 2. Open it in Chrome or Edge (right-click the file → Open With → Chrome)
 3. Allow microphone access when prompted
 4. Select your state, pick a quiz mode, and start practicing
 
 No server needed. The file runs entirely in your browser.
 
-**Option 2 — Host on GitHub Pages**
+**Option 3 — Fork and host your own copy**
 
 1. Fork this repository
 2. Go to Settings → Pages
 3. Set the source to your main branch, root folder
-4. GitHub will give you a public URL like `https://yourusername.github.io/civics-quiz`
+4. GitHub will give you a public URL like `https://yourusername.github.io/voice-civics-128`
 
 Anyone can then open that link on any device — phone, tablet, or desktop.
 
@@ -81,8 +87,9 @@ Use Chrome or Edge for the best experience. Firefox doesn't support the Web Spee
 ## Project structure
 
 ```
-civics-quiz.html    — the entire application (HTML + CSS + JS, one file)
-README.md           — this file
+index.html    — the entire application (HTML + CSS + JS, one file)
+README.md     — this file
+LICENSE       — MIT license
 ```
 
 Everything is in a single HTML file intentionally. There is no build process, no npm, no framework. You can inspect, modify, or redistribute it as-is.
