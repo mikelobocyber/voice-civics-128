@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  voice-civics-128
+  U.S. Naturalization Civics Test Practice (2025 version)
+
+  Author:  Miguel Angel Sevilla Ruiz (Wolf)
+  GitHub:  https://github.com/mikelobocyber
+  Repo:    https://github.com/mikelobocyber/voice-civics-128
+  License: MIT
+  ============================================================
+  A single HTML file — no server, no install, no account needed.
+  Just open in Chrome or Edge (desktop or phone) and go.
+
+  HOW IT WORKS (big picture):
+  1. All 128 USCIS civics questions are stored as a JS array.
+  2. The user picks their state, which fills in the state-specific
+     answers (governor, senators, capital, representative).
+  3. The user picks a quiz mode (shuffle / in order / starred).
+  4. One question is shown at a time. The user taps the mic,
+     speaks their answer, and the app checks it.
+  5. Checking uses fuzzy matching so small pronunciation differences
+     or slight wording variations still count as correct.
+  6. At the end, a score summary shows whether the user would pass.
+
+  BROWSER SUPPORT:
+  - Speech recognition: Chrome, Edge (desktop & Android), Safari iOS 14.5+
+  - No mic: the app still works, just shows the Skip button instead
+  ============================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- This line makes the page scale correctly on phones -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>U.S. Civics Test Practice</title>
+
+  <!-- Google Fonts — loaded once, then cached for offline use -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+  /* ── Reset ──────────────────────────────────────────────────
+     Remove default browser margin/padding so our spacing is
+     fully predictable across Chrome, Safari, Firefox, Edge. */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ── Design tokens ──────────────────────────────────────────
+     All colors and radii in one place. Change these to retheme
+     the whole app. Warm parchment tones feel appropriate for
+     a civics / government subject. */
+  :root {
+    --bg:           #F5F2EB;   /* page background — warm off-white */
+    --surface:      #FDFCF9;   /* card background — slightly lighter */
+    --border:       #DDD8CE;   /* subtle borders */
+    --text:         #1A1814;   /* near-black body text */
+    --text-muted:   #7A7468;   /* secondary labels */
+    --text-light:   #A8A29A;   /* hints, placeholders */
+    --accent:       #1B4332;   /* dark forest green — primary action */
+    --accent-light: #D8F3DC;   /* light green — correct answer bg */
+    --accent-text:  #1B4332;   /* text on light-green bg */
+    --red-light:    #FEE2E2;   /* wrong answer bg */
+    --red-text:     #7F1D1D;   /* text on red bg */
+    --gold:         #92400E;   /* warning text */
+    --gold-light:   #FEF3C7;   /* warning bg */
+    --radius:       12px;      /* card corner radius */
+    --radius-sm:    8px;       /* button / input corner radius */
+  }
+
+  /* ── Page layout ─────────────────────────────────────────── */
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Side padding so content doesn't touch phone edges;
+       bottom padding so the last button isn't hidden behind
+       the phone's home indicator */
+    padding: 0 16px 80px;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  header {
+    width: 100%;
+    max-width: 640px;
+    padding: 36px 0 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Decorative mini flag stripes above the title */
+  .flag-stripe {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 14px;
+  }
+  .flag-stripe span {
+    display: block;
+    width: 28px;
+    height: 4px;
+    border-radius: 2px;
+  }
+  .flag-stripe span:nth-child(odd)  { background: #B22234; } /* red */
+  .flag-stripe span:nth-child(even) { background: #1A1814; } /* dark */
+  .flag-stripe span:last-child      { background: #3C3B6E; } /* blue */
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* ── Main content area ───────────────────────────────────── */
+  main {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  /* ── State picker card ───────────────────────────────────── 
+     Shown at the top so users set their state before starting.
+     The state data populates questions 23 (senators), 29
+     (representative), 61 (governor), and 62 (capital). */
+  .state-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 14px;
+  }
+  .state-banner-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .state-banner label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* ── Shared <select> styling ────────────────────────────────
+     We replace the default ugly dropdown arrow with a custom SVG.
+     appearance:none removes the native arrow so ours shows instead. */
+  select {
+    flex: 1;
+    min-width: 160px;
+    padding: 9px 36px 9px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    appearance: none;
+    /* Custom chevron arrow as inline SVG data URI */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A7468' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+
+  /* Info panel that appears below state picker once a state is chosen.
+     Shows the governor, senators, capital, and representative
+     so the user knows what answers to expect. */
+  .state-info {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.9;
+    display: none; /* hidden until a state is selected */
+  }
+  .state-info.visible { display: block; }
+  .state-info strong { color: var(--text); font-weight: 500; }
+
+  /* ── Quiz mode controls ──────────────────────────────────── */
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap; /* wraps nicely on narrow phone screens */
+  }
+
+  .btn-restart {
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .btn-restart:hover { background: var(--bg); }
+
+  /* ── Progress bar ────────────────────────────────────────── */
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  /* The green fill — its width is set inline via JS as a percentage */
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.4s ease; /* smooth animation when advancing */
+  }
+  .progress-count {
+    font-size: 12px;
+    color: var(--text-light);
+    min-width: 50px;
+    text-align: right;
+  }
+
+  /* ── Score chips (correct / wrong / skipped) ─────────────── */
+  .chips {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+  .chip-c { background: var(--accent-light); color: var(--accent-text); }
+  .chip-w { background: var(--red-light);    color: var(--red-text);    }
+  .chip-s { background: #F3F4F6;             color: #4B5563;            }
+
+  /* ── Question card ───────────────────────────────────────── */
+  .q-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 24px 28px;
+    margin-bottom: 16px;
+  }
+  .q-num {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 10px;
+  }
+  /* Serif font for the question itself — feels more official */
+  .q-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 21px;
+    line-height: 1.45;
+    color: var(--text);
+  }
+  /* On small phones, shrink the question font a touch */
+  @media (max-width: 400px) {
+    .q-text { font-size: 18px; }
+  }
+
+  /* ── Microphone area ─────────────────────────────────────── */
+  .mic-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 0 8px;
+  }
+
+  .mic-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative; /* needed for the ripple pseudo-element below */
+    /* Large tap target — important for phone usability */
+    touch-action: manipulation;
+  }
+  .mic-btn:hover { border-color: var(--text); }
+  .mic-btn svg { width: 28px; height: 28px; }
+
+  /* Red state when actively recording */
+  .mic-btn.listening {
+    border-color: #B22234;
+    background: #FFF5F5;
+  }
+
+  /* Animated ripple ring that pulses while recording.
+     Uses a CSS pseudo-element so no extra HTML is needed. */
+  .mic-btn.listening::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid #B22234;
+    opacity: 0.4;
+    animation: ripple 1.4s ease-out infinite;
+  }
+  @keyframes ripple {
+    0%   { transform: scale(1);   opacity: 0.4; }
+    100% { transform: scale(1.4); opacity: 0;   }
+  }
+
+  /* The box where the live speech transcript appears as the
+     user is talking — updates in real time via JS */
+  .transcript {
+    min-height: 52px;
+    width: 100%;
+    max-width: 480px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    font-size: 15px;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.5;
+  }
+  /* Lighter style for the placeholder text before speaking */
+  .transcript.placeholder { color: var(--text-light); font-style: italic; }
+
+  .mic-hint {
+    font-size: 12px;
+    color: var(--text-light);
+    text-align: center;
+  }
+
+  /* Warning shown in browsers that don't support speech recognition
+     (mainly Firefox). The quiz still works, just without mic. */
+  .no-mic-warn {
+    background: var(--gold-light);
+    border: 1px solid #FCD34D;
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* ── Result card (shown after answering) ─────────────────── */
+  .result {
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .result-correct { background: var(--accent-light); border: 1px solid #95D5B2; }
+  .result-wrong   { background: var(--red-light);    border: 1px solid #FCA5A5; }
+  .result-skip    { background: #F9FAFB;             border: 1px solid var(--border); }
+  .result-label   { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+  .result-correct .result-label { color: var(--accent-text); }
+  .result-wrong   .result-label { color: var(--red-text); }
+  .result-skip    .result-label { color: var(--text-muted); }
+  .result-answers { font-size: 13px; line-height: 1.7; }
+  .result-correct .result-answers { color: #1B6340; }
+  .result-wrong   .result-answers { color: #991B1B; }
+  .result-skip    .result-answers { color: var(--text-muted); }
+
+  /* ── Action buttons ──────────────────────────────────────── */
+  .action-row {
+    display: flex;
+    gap: 10px;
+  }
+  .btn {
+    flex: 1;
+    /* Minimum 44px height for phone tap targets (Apple HIG guideline) */
+    padding: 13px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s;
+    touch-action: manipulation;
+  }
+  .btn:hover { background: var(--bg); }
+  /* Primary (green) button — used for "Next question" */
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn-primary:hover   { background: #145029; }
+  .btn-primary:active  { background: #0f3d1f; }
+  /* Muted style for secondary actions like Skip */
+  .btn-muted { color: var(--text-muted); font-size: 14px; font-weight: 400; }
+
+  .spacer { height: 12px; }
+
+  /* ── End-of-quiz summary screen ─────────────────────────── */
+  .summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 28px;
+    text-align: center;
+  }
+  .summary-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 10px;
+  }
+  /* Big percentage number — the hero of the summary screen */
+  .summary-pct {
+    font-family: 'DM Serif Display', serif;
+    font-size: 72px;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .summary-sub { font-size: 15px; color: var(--text-muted); margin-bottom: 24px; }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .stat-box { padding: 14px 8px; border-radius: var(--radius-sm); }
+  .stat-box.sc { background: var(--accent-light); }
+  .stat-box.sw { background: var(--red-light); }
+  .stat-box.ss { background: #F3F4F6; }
+  .stat-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-box.sc .stat-num { color: var(--accent-text); }
+  .stat-box.sw .stat-num { color: var(--red-text); }
+  .stat-box.ss .stat-num { color: #374151; }
+  .stat-lbl { font-size: 12px; }
+  .stat-box.sc .stat-lbl { color: #1B6340; }
+  .stat-box.sw .stat-lbl { color: #991B1B; }
+  .stat-box.ss .stat-lbl { color: #6B7280; }
+  .pass-badge {
+    display: inline-block;
+    background: var(--accent-light);
+    color: var(--accent-text);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+
+  /* ── Footer ─────────────────────────────────────────────── */
+  footer {
+    margin-top: 48px;
+    font-size: 12px;
+    color: var(--text-light);
+    text-align: center;
+    line-height: 1.9;
+  }
+  footer a { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <!-- Decorative stripe that evokes the American flag -->
+  <div class="flag-stripe">
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <h1>U.S. Civics Test Practice</h1>
+  <p class="subtitle">128 official USCIS questions &middot; speak your answers</p>
+</header>
+
+<main>
+
+  <!-- ── STATE PICKER ──────────────────────────────────────────
+       Choosing a state customizes four questions:
+         Q23  — your state's U.S. senators
+         Q29  — your U.S. representative (shows district note)
+         Q61  — your governor
+         Q62  — your state capital
+       The .state-info panel appears below once a state is chosen,
+       showing a preview of what those answers should be. -->
+  <div class="state-banner">
+    <div class="state-banner-top">
+      <label for="stateSelect">&#127968; Your state:</label>
+      <select id="stateSelect" onchange="onStateChange()">
+        <option value="">-- Select your state --</option>
+        <option value="AL">Alabama</option>
+        <option value="AK">Alaska</option>
+        <option value="AZ">Arizona</option>
+        <option value="AR">Arkansas</option>
+        <option value="CA">California</option>
+        <option value="CO">Colorado</option>
+        <option value="CT">Connecticut</option>
+        <option value="DE">Delaware</option>
+        <option value="FL">Florida</option>
+        <option value="GA">Georgia</option>
+        <option value="HI">Hawaii</option>
+        <option value="ID">Idaho</option>
+        <option value="IL">Illinois</option>
+        <option value="IN">Indiana</option>
+        <option value="IA">Iowa</option>
+        <option value="KS">Kansas</option>
+        <option value="KY">Kentucky</option>
+        <option value="LA">Louisiana</option>
+        <option value="ME">Maine</option>
+        <option value="MD">Maryland</option>
+        <option value="MA">Massachusetts</option>
+        <option value="MI">Michigan</option>
+        <option value="MN">Minnesota</option>
+        <option value="MS">Mississippi</option>
+        <option value="MO">Missouri</option>
+        <option value="MT">Montana</option>
+        <option value="NE">Nebraska</option>
+        <option value="NV">Nevada</option>
+        <option value="NH">New Hampshire</option>
+        <option value="NJ">New Jersey</option>
+        <option value="NM">New Mexico</option>
+        <option value="NY">New York</option>
+        <option value="NC">North Carolina</option>
+        <option value="ND">North Dakota</option>
+        <option value="OH">Ohio</option>
+        <option value="OK">Oklahoma</option>
+        <option value="OR">Oregon</option>
+        <option value="PA">Pennsylvania</option>
+        <option value="RI">Rhode Island</option>
+        <option value="SC">South Carolina</option>
+        <option value="SD">South Dakota</option>
+        <option value="TN">Tennessee</option>
+        <option value="TX">Texas</option>
+        <option value="UT">Utah</option>
+        <option value="VT">Vermont</option>
+        <option value="VA">Virginia</option>
+        <option value="WA">Washington</option>
+        <option value="WV">West Virginia</option>
+        <option value="WI">Wisconsin</option>
+        <option value="WY">Wyoming</option>
+      </select>
+    </div>
+    <!-- This panel is hidden by default; JS makes it visible and fills it in -->
+    <div class="state-info" id="stateInfo"></div>
+  </div>
+
+  <!-- ── QUIZ MODE + RESTART ───────────────────────────────── -->
+  <div class="controls">
+    <select id="modeSelect" class="mode-select" onchange="restart()">
+      <option value="shuffle">Shuffled (all 128)</option>
+      <option value="order">In order (1–128)</option>
+      <option value="starred">65/20 special (20 starred only)</option>
+    </select>
+    <button class="btn-restart" onclick="restart()">&#x21BA; Restart</button>
+  </div>
+
+  <!-- ── QUIZ AREA ─────────────────────────────────────────────
+       This div is the heart of the app. JS completely replaces
+       its innerHTML every time a new question loads, so there's
+       no complicated state to keep in sync with the DOM. -->
+  <div id="quizArea"></div>
+
+</main>
+
+<footer>
+  Answers current as of May 2026 &middot; Always verify officeholder names at
+  <a href="https://www.uscis.gov/citizenship/testupdates" target="_blank">uscis.gov/citizenship/testupdates</a>
+  before your interview.
+</footer>
+
+<script>
+// ================================================================
+//  STATE DATA
+//  Each state has:
+//    gov      — current governor (last name first for fuzzy matching)
+//    senators — array of two senator names (both accepted)
+//    capital  — state capital city
+//    rep      — short note about finding your representative
+//               (the actual rep varies by congressional district,
+//                so we give a helpful note rather than one name)
+//
+//  Sources: Wikipedia list of current governors and senators,
+//  verified May 2026. Check uscis.gov/citizenship/testupdates
+//  before any real interview.
+// ================================================================
+const STATE_DATA = {
+  AL: { gov: "Kay Ivey",           senators: ["Tommy Tuberville", "Barry Moore"],       capital: "Montgomery",   rep: "Varies by district — look up at house.gov" },
+  AK: { gov: "Mike Dunleavy",      senators: ["Lisa Murkowski", "Dan Sullivan"],         capital: "Juneau",       rep: "Mary Peltola" },
+  AZ: { gov: "Katie Hobbs",        senators: ["Mark Kelly", "Ruben Gallego"],            capital: "Phoenix",      rep: "Varies by district — look up at house.gov" },
+  AR: { gov: "Sarah Huckabee Sanders", senators: ["John Boozman", "Tom Cotton"],         capital: "Little Rock",  rep: "Varies by district — look up at house.gov" },
+  CA: { gov: "Gavin Newsom",       senators: ["Alex Padilla", "Adam Schiff"],            capital: "Sacramento",   rep: "Varies by district — look up at house.gov" },
+  CO: { gov: "Jared Polis",        senators: ["Michael Bennet", "John Hickenlooper"],    capital: "Denver",       rep: "Varies by district — look up at house.gov" },
+  CT: { gov: "Ned Lamont",         senators: ["Richard Blumenthal", "Chris Murphy"],     capital: "Hartford",     rep: "Varies by district — look up at house.gov" },
+  DE: { gov: "Matt Meyer",         senators: ["Chris Coons", "Lisa Blunt Rochester"],    capital: "Dover",        rep: "Sarah McBride" },
+  FL: { gov: "Ron DeSantis",       senators: ["Rick Scott", "Ashley Moody"],             capital: "Tallahassee",  rep: "Varies by district — look up at house.gov" },
+  GA: { gov: "Brian Kemp",         senators: ["Jon Ossoff", "Raphael Warnock"],          capital: "Atlanta",      rep: "Varies by district — look up at house.gov" },
+  HI: { gov: "Josh Green",         senators: ["Mazie Hirono", "Brian Schatz"],           capital: "Honolulu",     rep: "Varies by district — look up at house.gov" },
+  ID: { gov: "Brad Little",        senators: ["Mike Crapo", "Jim Risch"],                capital: "Boise",        rep: "Varies by district — look up at house.gov" },
+  IL: { gov: "JB Pritzker",        senators: ["Dick Durbin", "Tammy Duckworth"],         capital: "Springfield",  rep: "Varies by district — look up at house.gov" },
+  IN: { gov: "Mike Braun",         senators: ["Todd Young", "Jim Banks"],                capital: "Indianapolis", rep: "Varies by district — look up at house.gov" },
+  IA: { gov: "Kim Reynolds",       senators: ["Chuck Grassley", "Joni Ernst"],           capital: "Des Moines",   rep: "Varies by district — look up at house.gov" },
+  KS: { gov: "Laura Kelly",        senators: ["Jerry Moran", "Roger Marshall"],          capital: "Topeka",       rep: "Varies by district — look up at house.gov" },
+  KY: { gov: "Andy Beshear",       senators: ["Mitch McConnell", "Rand Paul"],           capital: "Frankfort",    rep: "Varies by district — look up at house.gov" },
+  LA: { gov: "Jeff Landry",        senators: ["Bill Cassidy", "John Kennedy"],           capital: "Baton Rouge",  rep: "Varies by district — look up at house.gov" },
+  ME: { gov: "Janet Mills",        senators: ["Susan Collins", "Angus King"],            capital: "Augusta",      rep: "Varies by district — look up at house.gov" },
+  MD: { gov: "Wes Moore",          senators: ["Ben Cardin", "Angela Alsobrooks"],        capital: "Annapolis",    rep: "Varies by district — look up at house.gov" },
+  MA: { gov: "Maura Healey",       senators: ["Elizabeth Warren", "Ed Markey"],          capital: "Boston",       rep: "Varies by district — look up at house.gov" },
+  MI: { gov: "Gretchen Whitmer",   senators: ["Gary Peters", "Elissa Slotkin"],          capital: "Lansing",      rep: "Varies by district — look up at house.gov" },
+  MN: { gov: "Tim Walz",           senators: ["Amy Klobuchar", "Tina Smith"],            capital: "Saint Paul",   rep: "Varies by district — look up at house.gov" },
+  MS: { gov: "Tate Reeves",        senators: ["Roger Wicker", "Cindy Hyde-Smith"],       capital: "Jackson",      rep: "Varies by district — look up at house.gov" },
+  MO: { gov: "Mike Kehoe",         senators: ["Josh Hawley", "Eric Schmitt"],            capital: "Jefferson City",rep: "Varies by district — look up at house.gov" },
+  MT: { gov: "Greg Gianforte",     senators: ["Steve Daines", "Tim Sheehy"],             capital: "Helena",       rep: "Troy Downing" },
+  NE: { gov: "Jim Pillen",         senators: ["Deb Fischer", "Pete Ricketts"],           capital: "Lincoln",      rep: "Varies by district — look up at house.gov" },
+  NV: { gov: "Joe Lombardo",       senators: ["Jacky Rosen", "Catherine Cortez Masto"], capital: "Carson City",  rep: "Varies by district — look up at house.gov" },
+  NH: { gov: "Kelly Ayotte",       senators: ["Jeanne Shaheen", "Maggie Hassan"],        capital: "Concord",      rep: "Varies by district — look up at house.gov" },
+  NJ: { gov: "Mikie Sherrill",     senators: ["Cory Booker", "Andy Kim"],               capital: "Trenton",      rep: "Varies by district — look up at house.gov" },
+  NM: { gov: "Michelle Lujan Grisham", senators: ["Martin Heinrich", "Ben Ray Lujan"],  capital: "Santa Fe",     rep: "Varies by district — look up at house.gov" },
+  NY: { gov: "Kathy Hochul",       senators: ["Chuck Schumer", "Kirsten Gillibrand"],    capital: "Albany",       rep: "Varies by district — look up at house.gov" },
+  NC: { gov: "Josh Stein",         senators: ["Thom Tillis", "Ted Budd"],               capital: "Raleigh",      rep: "Varies by district — look up at house.gov" },
+  ND: { gov: "Kelly Armstrong",    senators: ["John Hoeven", "Kevin Cramer"],            capital: "Bismarck",     rep: "Julie Fedorchak" },
+  OH: { gov: "Mike DeWine",        senators: ["Sherrod Brown", "Bernie Moreno"],         capital: "Columbus",     rep: "Varies by district — look up at house.gov" },
+  OK: { gov: "Kevin Stitt",        senators: ["Markwayne Mullin", "James Lankford"],     capital: "Oklahoma City",rep: "Varies by district — look up at house.gov" },
+  OR: { gov: "Tina Kotek",         senators: ["Ron Wyden", "Jeff Merkley"],              capital: "Salem",        rep: "Varies by district — look up at house.gov" },
+  PA: { gov: "Josh Shapiro",       senators: ["Bob Casey", "Dave McCormick"],            capital: "Harrisburg",   rep: "Varies by district — look up at house.gov" },
+  RI: { gov: "Dan McKee",          senators: ["Jack Reed", "Sheldon Whitehouse"],        capital: "Providence",   rep: "Varies by district — look up at house.gov" },
+  SC: { gov: "Henry McMaster",     senators: ["Lindsey Graham", "Tim Scott"],            capital: "Columbia",     rep: "Varies by district — look up at house.gov" },
+  SD: { gov: "Larry Rhoden",       senators: ["John Thune", "Mike Rounds"],              capital: "Pierre",       rep: "Dusty Johnson" },
+  TN: { gov: "Bill Lee",           senators: ["Marsha Blackburn", "Bill Hagerty"],       capital: "Nashville",    rep: "Varies by district — look up at house.gov" },
+  TX: { gov: "Greg Abbott",        senators: ["John Cornyn", "Ted Cruz"],                capital: "Austin",       rep: "Varies by district — look up at house.gov" },
+  UT: { gov: "Spencer Cox",        senators: ["Mike Lee", "John Curtis"],                capital: "Salt Lake City",rep: "Varies by district — look up at house.gov" },
+  VT: { gov: "Phil Scott",         senators: ["Bernie Sanders", "Peter Welch"],          capital: "Montpelier",   rep: "Mark Coester" },
+  VA: { gov: "Abigail Spanberger", senators: ["Tim Kaine", "Mark Warner"],              capital: "Richmond",     rep: "Varies by district — look up at house.gov" },
+  WA: { gov: "Bob Ferguson",       senators: ["Patty Murray", "Maria Cantwell"],         capital: "Olympia",      rep: "Varies by district — look up at house.gov" },
+  WV: { gov: "Patrick Morrisey",   senators: ["Jim Justice", "Shelley Moore Capito"],    capital: "Charleston",   rep: "Varies by district — look up at house.gov" },
+  WI: { gov: "Tony Evers",         senators: ["Ron Johnson", "Tammy Baldwin"],           capital: "Madison",      rep: "Varies by district — look up at house.gov" },
+  WY: { gov: "Mark Gordon",        senators: ["John Barrasso", "Cynthia Lummis"],        capital: "Cheyenne",     rep: "Harriet Hageman" }
+};
+
+// ================================================================
+//  QUESTIONS ARRAY
+//  Each object has:
+//    n    — official USCIS question number (1–128)
+//    q    — the question text
+//    a    — array of accepted answers (all lowercase, fuzzy-matched)
+//    star — true if this is one of the 20 "65/20" starred questions
+//
+//  For state-specific questions (23, 29, 61, 62), the answers
+//  array is populated at runtime by updateStateQuestions().
+// ================================================================
+const QUESTIONS = [
+  {n:1,  q:"What is the form of government of the United States?",
+         a:["republic","constitution-based federal republic","representative democracy","constitutional republic"]},
+  {n:2,  q:"What is the supreme law of the land?",
+         a:["constitution","us constitution","the constitution"], star:true},
+  {n:3,  q:"Name one thing the U.S. Constitution does.",
+         a:["forms the government","defines powers of government","defines the parts of government","protects the rights of the people"]},
+  {n:4,  q:"The U.S. Constitution starts with the words 'We the People.' What does 'We the People' mean?",
+         a:["self-government","popular sovereignty","consent of the governed","people should govern themselves","social contract"]},
+  {n:5,  q:"How are changes made to the U.S. Constitution?",
+         a:["amendments","the amendment process","amendment"]},
+  {n:6,  q:"What does the Bill of Rights protect?",
+         a:["basic rights of americans","rights of americans","rights of people living in the united states","basic rights","rights of people"]},
+  {n:7,  q:"How many amendments does the U.S. Constitution have?",
+         a:["27","twenty-seven","twenty seven"], star:true},
+  {n:8,  q:"Why is the Declaration of Independence important?",
+         a:["america is free from british control","all people are created equal","inherent rights","individual freedoms","free from britain"]},
+  {n:9,  q:"What founding document said the American colonies were free from Britain?",
+         a:["declaration of independence"]},
+  {n:10, q:"Name two important ideas from the Declaration of Independence and the U.S. Constitution.",
+         a:["equality","liberty","social contract","natural rights","limited government","self-government"]},
+  {n:11, q:"The words 'Life, Liberty, and the pursuit of Happiness' are in what founding document?",
+         a:["declaration of independence"]},
+  {n:12, q:"What is the economic system of the United States?",
+         a:["capitalism","free market economy","free market"], star:true},
+  {n:13, q:"What is the rule of law?",
+         a:["everyone must follow the law","leaders must obey the law","government must obey the law","no one is above the law"]},
+  {n:14, q:"Many documents influenced the U.S. Constitution. Name one.",
+         a:["declaration of independence","articles of confederation","federalist papers","anti-federalist papers","virginia declaration of rights","fundamental orders of connecticut","mayflower compact","iroquois great law of peace"]},
+  {n:15, q:"There are three branches of government. Why?",
+         a:["so one part does not become too powerful","checks and balances","separation of powers"]},
+  {n:16, q:"Name the three branches of government.",
+         a:["legislative executive and judicial","congress president and the courts","legislative","executive","judicial"]},
+  {n:17, q:"The President of the United States is in charge of which branch of government?",
+         a:["executive branch","executive"]},
+  {n:18, q:"What part of the federal government writes laws?",
+         a:["congress","legislature","legislative branch","us congress","national legislature"]},
+  {n:19, q:"What are the two parts of the U.S. Congress?",
+         a:["senate and house","senate and house of representatives","senate","house of representatives"]},
+  {n:20, q:"Name one power of the U.S. Congress.",
+         a:["writes laws","declares war","makes the federal budget"], star:true},
+  {n:21, q:"How many U.S. senators are there?",
+         a:["100","one hundred"]},
+  {n:22, q:"How long is a term for a U.S. senator?",
+         a:["6 years","six years","6"]},
+  // Q23 — answers filled in by updateStateQuestions() when a state is chosen
+  {n:23, q:"Who is one of your state's U.S. senators now?",
+         a:["answers will vary","check senate.gov"]},
+  {n:24, q:"How many voting members are in the House of Representatives?",
+         a:["435","four hundred thirty-five","four hundred and thirty-five"]},
+  {n:25, q:"How long is a term for a member of the House of Representatives?",
+         a:["2 years","two years","2"]},
+  {n:26, q:"Why do U.S. representatives serve shorter terms than U.S. senators?",
+         a:["to more closely follow public opinion","public opinion","follow public opinion","closer to public opinion"]},
+  {n:27, q:"How many senators does each state have?",
+         a:["2","two"]},
+  {n:28, q:"Why does each state have two senators?",
+         a:["equal representation","great compromise","connecticut compromise","equal representation for small states"]},
+  // Q29 — answers filled in by updateStateQuestions()
+  {n:29, q:"Name your U.S. representative.",
+         a:["answers will vary","check house.gov"]},
+  {n:30, q:"What is the name of the Speaker of the House of Representatives now?",
+         a:["mike johnson","johnson","michael johnson"], star:true},
+  {n:31, q:"Who does a U.S. senator represent?",
+         a:["citizens of their state","people of their state","citizens","people of the state"]},
+  {n:32, q:"Who elects U.S. senators?",
+         a:["citizens from their state","citizens","voters"]},
+  {n:33, q:"Who does a member of the House of Representatives represent?",
+         a:["citizens in their district","people in their district","citizens in their congressional district"]},
+  {n:34, q:"Who elects members of the House of Representatives?",
+         a:["citizens from their congressional district","citizens","voters in their district"]},
+  {n:35, q:"Some states have more representatives than other states. Why?",
+         a:["the state population","population","more people","they have more people","state population"]},
+  {n:36, q:"The President of the United States is elected for how many years?",
+         a:["4","four","4 years","four years"], star:true},
+  {n:37, q:"The President of the United States can serve only two terms. Why?",
+         a:["22nd amendment","twenty-second amendment","to keep the president from becoming too powerful","limit presidential power"]},
+  {n:38, q:"What is the name of the President of the United States now?",
+         a:["donald trump","trump","donald j trump"], star:true},
+  {n:39, q:"What is the name of the Vice President of the United States now?",
+         a:["jd vance","vance","james vance","j d vance"], star:true},
+  {n:40, q:"If the president can no longer serve, who becomes president?",
+         a:["vice president","the vice president"]},
+  {n:41, q:"Name one power of the president.",
+         a:["signs bills into law","vetoes bills","enforces laws","commander in chief","chief diplomat","appoints federal judges"]},
+  {n:42, q:"Who is Commander in Chief of the U.S. military?",
+         a:["the president","president of the united states","president"]},
+  {n:43, q:"Who signs bills to become laws?",
+         a:["the president","president of the united states","president"]},
+  {n:44, q:"Who vetoes bills?",
+         a:["the president","president of the united states","president"], star:true},
+  {n:45, q:"Who appoints federal judges?",
+         a:["the president","president of the united states","president"]},
+  {n:46, q:"The executive branch has many parts. Name one.",
+         a:["president","cabinet","federal departments and agencies","departments and agencies","federal agencies"]},
+  {n:47, q:"What does the President's Cabinet do?",
+         a:["advises the president","advises president","advise the president","gives advice to the president"]},
+  {n:48, q:"What are two Cabinet-level positions?",
+         a:["attorney general","secretary of state","secretary of defense","secretary of the treasury","vice president","secretary of agriculture","secretary of commerce","secretary of education","secretary of energy","secretary of homeland security","secretary of labor","secretary of interior","secretary of transportation"]},
+  {n:49, q:"Why is the Electoral College important?",
+         a:["it decides who is elected president","compromise between popular election and congressional selection","decides the president","elects the president"]},
+  {n:50, q:"What is one part of the judicial branch?",
+         a:["supreme court","federal courts","the supreme court"]},
+  {n:51, q:"What does the judicial branch do?",
+         a:["reviews laws","explains laws","resolves disputes about the law","decides if a law goes against the constitution","interpret laws","interprets laws"]},
+  {n:52, q:"What is the highest court in the United States?",
+         a:["supreme court","the supreme court"], star:true},
+  {n:53, q:"How many seats are on the Supreme Court?",
+         a:["9","nine"]},
+  {n:54, q:"How many Supreme Court justices are usually needed to decide a case?",
+         a:["5","five"]},
+  {n:55, q:"How long do Supreme Court justices serve?",
+         a:["for life","lifetime","until retirement","life","lifetime appointment"]},
+  {n:56, q:"Supreme Court justices serve for life. Why?",
+         a:["to be independent","independent of politics","to limit outside political influence","limit political influence","free from political pressure"]},
+  {n:57, q:"Who is the Chief Justice of the United States now?",
+         a:["john roberts","roberts","john g roberts","john g roberts jr"]},
+  {n:58, q:"Name one power that is only for the federal government.",
+         a:["print paper money","mint coins","declare war","create an army","make treaties","set foreign policy","print money"]},
+  {n:59, q:"Name one power that is only for the states.",
+         a:["provide schooling and education","provide protection","police","fire departments","give a driver license","approve zoning and land use","education","driver license"]},
+  {n:60, q:"What is the purpose of the 10th Amendment?",
+         a:["powers not given to the federal government belong to the states or to the people","states rights","powers belong to states","reserved powers for states"]},
+  // Q61 — answers filled in by updateStateQuestions()
+  {n:61, q:"Who is the governor of your state now?",
+         a:["answers will vary"], star:true},
+  // Q62 — answers filled in by updateStateQuestions()
+  {n:62, q:"What is the capital of your state?",
+         a:["answers will vary"]},
+  {n:63, q:"There are four amendments about who can vote. Describe one.",
+         a:["citizens eighteen and older","you don t have to pay a poll tax","any citizen can vote","women and men can vote","a male citizen of any race","18 and older","eighteen and older"]},
+  {n:64, q:"Who can vote in federal elections, run for federal office, and serve on a jury?",
+         a:["citizens","us citizens","citizens of the united states","american citizens"]},
+  {n:65, q:"What are three rights of everyone living in the United States?",
+         a:["freedom of expression","freedom of speech","freedom of assembly","freedom to petition the government","freedom of religion","the right to bear arms","bear arms","right to bear arms"]},
+  {n:66, q:"What do we show loyalty to when we say the Pledge of Allegiance?",
+         a:["the united states","the flag","united states","flag","america"], star:true},
+  {n:67, q:"Name two promises that new citizens make in the Oath of Allegiance.",
+         a:["give up loyalty to other countries","defend the constitution","obey the laws of the united states","serve in the military","serve the nation","be loyal to the united states"]},
+  {n:68, q:"How can people become United States citizens?",
+         a:["be born in the united states","naturalize","naturalization","derive citizenship","born here"]},
+  {n:69, q:"What are two examples of civic participation in the United States?",
+         a:["vote","run for office","join a political party","help with a campaign","join a civic group","join a community group","contact elected officials","write to a newspaper","voting"]},
+  {n:70, q:"What is one way Americans can serve their country?",
+         a:["vote","pay taxes","obey the law","serve in the military","run for office","work for government","work for local state or federal government"]},
+  {n:71, q:"Why is it important to pay federal taxes?",
+         a:["required by law","fund the federal government","16th amendment","civic duty","required by the constitution"]},
+  {n:72, q:"It is important for men age 18-25 to register for the Selective Service. Name one reason why.",
+         a:["required by law","civic duty","makes the draft fair","draft"]},
+  {n:73, q:"The colonists came to America for many reasons. Name one.",
+         a:["freedom","political liberty","religious freedom","economic opportunity","escape persecution","liberty"]},
+  {n:74, q:"Who lived in America before the Europeans arrived?",
+         a:["american indians","native americans","american indian","native american","indigenous people"], star:true},
+  {n:75, q:"What group of people was taken and sold as slaves?",
+         a:["africans","people from africa","african people"]},
+  {n:76, q:"What war did the Americans fight to win independence from Britain?",
+         a:["american revolution","revolutionary war","war for independence","war for american independence","the american revolutionary war"]},
+  {n:77, q:"Name one reason why the Americans declared independence from Britain.",
+         a:["high taxes","taxation without representation","british soldiers stayed in their houses","they did not have self-government","boston massacre","boston tea party","stamp act","sugar act","townshend acts","intolerable acts"]},
+  {n:78, q:"Who wrote the Declaration of Independence?",
+         a:["thomas jefferson","jefferson"], star:true},
+  {n:79, q:"When was the Declaration of Independence adopted?",
+         a:["july 4 1776","july fourth 1776","1776","july 4th 1776","fourth of july 1776"]},
+  {n:80, q:"The American Revolution had many important events. Name one.",
+         a:["bunker hill","declaration of independence","battle of trenton","battle of saratoga","valley forge","battle of yorktown","yorktown","crossing the delaware"]},
+  {n:81, q:"There were 13 original states. Name five.",
+         a:["new hampshire","massachusetts","rhode island","connecticut","new york","new jersey","pennsylvania","delaware","maryland","virginia","north carolina","south carolina","georgia"]},
+  {n:82, q:"What founding document was written in 1787?",
+         a:["us constitution","constitution","the constitution"]},
+  {n:83, q:"The Federalist Papers supported the U.S. Constitution. Name one of the writers.",
+         a:["james madison","alexander hamilton","john jay","madison","hamilton","jay","publius"]},
+  {n:84, q:"Why were the Federalist Papers important?",
+         a:["they helped people understand the constitution","they supported passing the constitution","understand the constitution"]},
+  {n:85, q:"Benjamin Franklin is famous for many things. Name one.",
+         a:["founded the first free public libraries","first postmaster general","helped write the declaration of independence","inventor","us diplomat","diplomat"]},
+  {n:86, q:"George Washington is famous for many things. Name one.",
+         a:["father of our country","first president","general of the continental army","president of the constitutional convention","first president of the united states"], star:true},
+  {n:87, q:"Thomas Jefferson is famous for many things. Name one.",
+         a:["writer of the declaration of independence","third president","doubled the size of the united states","louisiana purchase","first secretary of state","founded the university of virginia"]},
+  {n:88, q:"James Madison is famous for many things. Name one.",
+         a:["father of the constitution","fourth president","president during the war of 1812","federalist papers","father of our constitution"]},
+  {n:89, q:"Alexander Hamilton is famous for many things. Name one.",
+         a:["first secretary of the treasury","federalist papers","helped establish the first bank","aide to george washington","continental congress"]},
+  {n:90, q:"What territory did the United States buy from France in 1803?",
+         a:["louisiana territory","louisiana","the louisiana territory"]},
+  {n:91, q:"Name one war fought by the United States in the 1800s.",
+         a:["war of 1812","mexican-american war","civil war","spanish-american war","the civil war"]},
+  {n:92, q:"Name the U.S. war between the North and the South.",
+         a:["the civil war","civil war","war between the states"]},
+  {n:93, q:"The Civil War had many important events. Name one.",
+         a:["fort sumter","emancipation proclamation","battle of vicksburg","battle of gettysburg","shermans march","surrender at appomattox","battle of antietam","lincoln was assassinated","gettysburg"]},
+  {n:94, q:"Abraham Lincoln is famous for many things. Name one.",
+         a:["freed the slaves","emancipation proclamation","saved the union","led the united states during the civil war","16th president","gettysburg address","sixteenth president"], star:true},
+  {n:95, q:"What did the Emancipation Proclamation do?",
+         a:["freed the slaves","freed slaves in the confederacy","freed slaves in most southern states","ended slavery in the confederacy"]},
+  {n:96, q:"What U.S. war ended slavery?",
+         a:["the civil war","civil war"]},
+  {n:97, q:"What amendment says all persons born or naturalized in the United States are U.S. citizens?",
+         a:["14th amendment","fourteenth amendment","14th","14"]},
+  {n:98, q:"When did all men get the right to vote?",
+         a:["after the civil war","during reconstruction","15th amendment","fifteenth amendment","1870","reconstruction"]},
+  {n:99, q:"Name one leader of the women's rights movement in the 1800s.",
+         a:["susan b anthony","elizabeth cady stanton","sojourner truth","harriet tubman","lucretia mott","lucy stone","anthony","stanton"]},
+  {n:100,q:"Name one war fought by the United States in the 1900s.",
+         a:["world war i","world war 1","world war ii","world war 2","korean war","vietnam war","persian gulf war","gulf war","ww1","ww2"]},
+  {n:101,q:"Why did the United States enter World War I?",
+         a:["germany attacked us ships","support the allied powers","oppose the central powers","germany attacked civilian ships","unrestricted submarine warfare"]},
+  {n:102,q:"When did all women get the right to vote?",
+         a:["1920","after world war i","after world war 1","19th amendment","nineteenth amendment"]},
+  {n:103,q:"What was the Great Depression?",
+         a:["longest economic recession in modern history","economic recession","great economic recession","longest economic downturn"]},
+  {n:104,q:"When did the Great Depression start?",
+         a:["1929","the great crash","stock market crash of 1929","stock market crash"]},
+  {n:105,q:"Who was president during the Great Depression and World War II?",
+         a:["franklin roosevelt","roosevelt","fdr","franklin d roosevelt"]},
+  {n:106,q:"Why did the United States enter World War II?",
+         a:["bombing of pearl harbor","japanese attacked pearl harbor","pearl harbor","support the allied powers","oppose the axis powers","attack on pearl harbor"]},
+  {n:107,q:"Dwight Eisenhower is famous for many things. Name one.",
+         a:["general during world war ii","president at the end of the korean war","34th president","signed the federal-aid highway act","interstate system","highway act"]},
+  {n:108,q:"Who was the United States' main rival during the Cold War?",
+         a:["soviet union","ussr","russia","the soviet union"]},
+  {n:109,q:"During the Cold War, what was one main concern of the United States?",
+         a:["communism","nuclear war","spread of communism"]},
+  {n:110,q:"Why did the United States enter the Korean War?",
+         a:["to stop the spread of communism","communism","stop communism","contain communism"]},
+  {n:111,q:"Why did the United States enter the Vietnam War?",
+         a:["to stop the spread of communism","communism","stop communism","contain communism"]},
+  {n:112,q:"What did the civil rights movement do?",
+         a:["fought to end racial discrimination","end racial discrimination","racial discrimination","equal rights","fought for equal rights"]},
+  {n:113,q:"Martin Luther King Jr. is famous for many things. Name one.",
+         a:["fought for civil rights","worked for equality","civil rights","equality","equal rights leader"], star:true},
+  {n:114,q:"Why did the United States enter the Persian Gulf War?",
+         a:["to force the iraqi military from kuwait","iraq","kuwait","force iraq from kuwait","liberate kuwait"]},
+  {n:115,q:"What major event happened on September 11, 2001 in the United States?",
+         a:["terrorists attacked the united states","world trade center","pentagon","terrorists","9 11","september 11","terrorist attack"], star:true},
+  {n:116,q:"Name one U.S. military conflict after the September 11, 2001 attacks.",
+         a:["war on terror","war in afghanistan","war in iraq","afghanistan","iraq","global war on terror"]},
+  {n:117,q:"Name one American Indian tribe in the United States.",
+         a:["apache","blackfeet","cayuga","cherokee","cheyenne","chippewa","choctaw","creek","crow","hopi","huron","inupiat","lakota","mohawk","mohegan","navajo","oneida","onondaga","pueblo","seminole","seneca","shawnee","sioux","teton","tuscarora"]},
+  {n:118,q:"Name one example of an American innovation.",
+         a:["light bulb","automobile","cars","skyscrapers","airplane","assembly line","landing on the moon","integrated circuit","the airplane","the light bulb"]},
+  {n:119,q:"What is the capital of the United States?",
+         a:["washington dc","washington d c","washington"]},
+  {n:120,q:"Where is the Statue of Liberty?",
+         a:["new york harbor","liberty island","new jersey","near new york city","hudson river","new york"]},
+  {n:121,q:"Why does the flag have 13 stripes?",
+         a:["13 original colonies","thirteen original colonies","represent the original colonies","original colonies"], star:true},
+  {n:122,q:"Why does the flag have 50 stars?",
+         a:["one star for each state","each star represents a state","50 states","fifty states"]},
+  {n:123,q:"What is the name of the national anthem?",
+         a:["the star-spangled banner","star-spangled banner","star spangled banner"]},
+  {n:124,q:"The Nation's first motto was 'E Pluribus Unum.' What does that mean?",
+         a:["out of many one","we all become one","out of many","one from many"]},
+  {n:125,q:"What is Independence Day?",
+         a:["a holiday to celebrate us independence","the country s birthday","independence from britain","celebrate independence","fourth of july"]},
+  {n:126,q:"Name three national U.S. holidays.",
+         a:["new years day","martin luther king jr day","presidents day","memorial day","juneteenth","independence day","labor day","columbus day","veterans day","thanksgiving day","christmas day","thanksgiving","christmas","new year"], star:true},
+  {n:127,q:"What is Memorial Day?",
+         a:["a holiday to honor soldiers who died in military service","honor soldiers who died","soldiers who died","honor fallen soldiers"]},
+  {n:128,q:"What is Veterans Day?",
+         a:["a holiday to honor people in the military","honor people who have served","honor veterans","veterans","honor military service members"]}
+];
+
+// ================================================================
+//  QUIZ STATE
+//  These variables track everything about the current session.
+//  They're reset every time restart() is called.
+// ================================================================
+let deck      = [];    // the active question list (subset or reordered)
+let idx       = 0;     // index of the current question within deck[]
+let correct   = 0;     // running count of correct answers
+let wrong     = 0;     // running count of wrong answers
+let skipped   = 0;     // running count of skips
+let answered  = false; // true once the current question has been graded
+let transcript = '';   // the text returned by speech recognition
+
+// Speech recognition object — created once, reused across questions
+let recognition = null;
+let listening   = false; // true while the mic is actively recording
+
+// Detect whether this browser supports speech recognition at all.
+// Chrome and Edge say yes. Firefox says no. Safari: partially.
+const hasMic = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+
+// ================================================================
+//  STATE SELECTION
+//  Called when the user picks a state from the dropdown.
+//  Updates the four state-specific questions and shows the
+//  info panel so the user can preview the expected answers.
+// ================================================================
+function onStateChange() {
+  const code = document.getElementById('stateSelect').value;
+  const info = document.getElementById('stateInfo');
+
+  if (!code) {
+    // No state chosen — hide the info panel
+    info.classList.remove('visible');
+    info.innerHTML = '';
+    return;
+  }
+
+  // Swap in the real answers for Q23, Q29, Q61, Q62
+  updateStateQuestions(code);
+
+  // Show a preview of state-specific answers below the picker
+  const s = STATE_DATA[code];
+  info.innerHTML =
+    `<strong>Governor:</strong> ${s.gov}<br>` +
+    `<strong>Senators:</strong> ${s.senators.join(' &middot; ')}<br>` +
+    `<strong>Capital:</strong> ${s.capital}<br>` +
+    `<strong>Representative:</strong> ${s.rep}`;
+  info.classList.add('visible');
+}
+
+// Patch the answers arrays for the four state-dependent questions
+function updateStateQuestions(code) {
+  const s = STATE_DATA[code];
+
+  // Q23 — accept either senator's last name or full name
+  const q23 = QUESTIONS.find(q => q.n === 23);
+  q23.a = [
+    s.senators[0].toLowerCase(),
+    s.senators[1].toLowerCase(),
+    s.senators[0].split(' ').pop().toLowerCase(), // last name only
+    s.senators[1].split(' ').pop().toLowerCase()
+  ];
+
+  // Q29 — representative (varies by district; note is shown instead)
+  const q29 = QUESTIONS.find(q => q.n === 29);
+  // If a specific rep is known (at-large states), accept their name;
+  // otherwise accept "it varies" type answers so the question isn't unfair
+  const repName = s.rep.toLowerCase();
+  q29.a = repName.includes('varies')
+    ? ["varies by district","check house.gov","depends on district","my representative","resident commissioner","delegate"]
+    : [repName, repName.split(' ').pop()];
+
+  // Q61 — governor (accept full name or last name)
+  const q61 = QUESTIONS.find(q => q.n === 61);
+  q61.a = [
+    s.gov.toLowerCase(),
+    s.gov.split(' ').pop().toLowerCase()
+  ];
+
+  // Q62 — state capital
+  const q62 = QUESTIONS.find(q => q.n === 62);
+  q62.a = [s.capital.toLowerCase()];
+}
+
+// ================================================================
+//  DECK BUILDING
+//  Assembles the question list based on the selected mode.
+//  "shuffle"  = all 128 in random order
+//  "order"    = all 128 in question-number order
+//  "starred"  = only the 20 questions marked star:true
+// ================================================================
+function buildDeck() {
+  const mode = document.getElementById('modeSelect').value;
+
+  if (mode === 'starred') {
+    deck = QUESTIONS.filter(q => q.star);
+  } else if (mode === 'shuffle') {
+    // Fisher-Yates-adjacent shuffle using sort + random
+    deck = [...QUESTIONS].sort(() => Math.random() - 0.5);
+  } else {
+    deck = [...QUESTIONS]; // original 1–128 order
+  }
+
+  // Reset all session state
+  idx = 0; correct = 0; wrong = 0; skipped = 0; answered = false; transcript = '';
+}
+
+// ================================================================
+//  RESTART
+//  Stop any active recording, rebuild the deck, re-render.
+// ================================================================
+function restart() {
+  stopListening();
+  buildDeck();
+  render();
+}
+
+// ================================================================
+//  ANSWER CHECKING — FUZZY MATCHING
+//
+//  The actual USCIS interview is oral and forgiving of small
+//  variations. We try to match that spirit here.
+//
+//  Strategy:
+//  1. Normalize both strings (lowercase, strip punctuation)
+//  2. Check exact match
+//  3. Check substring containment (answer inside transcript or vice versa)
+//  4. Check if ≥80% of the answer's words appear in the transcript
+//     (with 1-character typo tolerance per word)
+//  5. For short answers (≤3 words), allow up to 2 edit-distance overall
+// ================================================================
+
+// Normalize a string for comparison:
+// lowercase, remove apostrophes/hyphens (treat as spaces), strip
+// all other punctuation, collapse whitespace
+function norm(s) {
+  return s.toLowerCase()
+    .replace(/['\-]/g, ' ')
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Levenshtein edit distance — counts insertions, deletions, substitutions.
+// Used to catch small pronunciation or spelling differences.
+// We skip it for very long strings (performance) and cap at 99 for mismatches.
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (a.length > 40 || b.length > 40) return a === b ? 0 : 99;
+  const m = a.length, n = b.length;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = a[i-1] === b[j-1]
+        ? prev[j-1]
+        : 1 + Math.min(prev[j], cur[j-1], prev[j-1]);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+// Main check: returns true if what the user said matches any accepted answer
+function checkAnswer(text) {
+  const q = deck[idx];
+  const t = norm(text);
+  if (!t) return false; // nothing heard
+
+  return q.a.some(ans => {
+    const a = norm(ans);
+
+    // Exact match after normalization
+    if (t === a) return true;
+
+    // One string contains the other
+    // (e.g. user says "the constitution" and answer is "constitution")
+    if (t.includes(a) || a.includes(t)) return true;
+
+    // Word-level fuzzy: most of the answer's words appear in what was said
+    const tWords = t.split(' ');
+    const aWords = a.split(' ');
+    const matchedWords = aWords.filter(w =>
+      tWords.some(tw => tw === w || levenshtein(tw, w) <= 1)
+    );
+    if (matchedWords.length >= Math.ceil(aWords.length * 0.8)) return true;
+
+    // Short-answer overall edit distance (catches "Jeffurson" → "jefferson")
+    if (aWords.length <= 3 && levenshtein(t, a) <= 2) return true;
+
+    return false;
+  });
+}
+
+// ================================================================
+//  SPEECH RECOGNITION SETUP
+//  We create the recognition object lazily (on first mic tap)
+//  because some browsers ask for mic permission at creation time.
+// ================================================================
+function setupRecognition() {
+  if (!hasMic) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous    = false; // stop after the first pause
+  recognition.interimResults = true; // show words as they come in (live preview)
+  recognition.lang           = 'en-US';
+
+  // Fires repeatedly as the user speaks — updates the transcript box live
+  recognition.onresult = e => {
+    transcript = Array.from(e.results).map(r => r[0].transcript).join(' ');
+    const tb = document.getElementById('transcriptBox');
+    if (tb) {
+      tb.textContent = transcript;
+      tb.classList.remove('placeholder');
+    }
+  };
+
+  // Fires when the browser stops listening (user paused or tapped mic again)
+  recognition.onend = () => {
+    listening = false;
+    updateMicBtn(false);
+    // Auto-grade if we got something and the question isn't already answered
+    if (transcript && !answered) submitAnswer();
+  };
+
+  // Microphone error (permission denied, hardware problem, etc.)
+  recognition.onerror = () => {
+    listening = false;
+    updateMicBtn(false);
+  };
+}
+
+// Toggle the mic button visual between idle and recording states
+function updateMicBtn(isListening) {
+  const btn = document.getElementById('micBtn');
+  if (!btn) return;
+  if (isListening) {
+    btn.classList.add('listening');
+    btn.innerHTML = svgMicOff(); // show the "stop" icon (mic with slash)
+  } else {
+    btn.classList.remove('listening');
+    btn.innerHTML = svgMic();   // show the regular mic icon
+  }
+}
+
+// SVG icon for idle mic (black)
+function svgMic() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="9" y="2" width="6" height="11" rx="3"/>
+    <path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8"/>
+  </svg>`;
+}
+
+// SVG icon for recording mic (red with diagonal slash)
+function svgMicOff() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="#B22234" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="9" y="2" width="6" height="11" rx="3"/>
+    <path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8M3 3l18 18"/>
+  </svg>`;
+}
+
+// Called when the user taps the mic button
+function toggleMic() {
+  if (!recognition) setupRecognition();
+  if (listening) {
+    stopListening(); // tap again = stop early, which triggers onend → grade
+  } else {
+    transcript = '';
+    const tb = document.getElementById('transcriptBox');
+    if (tb) {
+      tb.textContent = 'Listening\u2026';
+      tb.classList.add('placeholder');
+    }
+    try {
+      recognition.start();
+      listening = true;
+      updateMicBtn(true);
+    } catch (e) {
+      // If recognition.start() throws (e.g. already started), just ignore
+    }
+  }
+}
+
+// Stops recording cleanly — used by toggleMic, skipQuestion, restart
+function stopListening() {
+  if (recognition && listening) {
+    try { recognition.stop(); } catch (e) {}
+  }
+  listening = false;
+  updateMicBtn(false);
+}
+
+// ================================================================
+//  GRADING
+// ================================================================
+
+// Grade the current transcript and update score counters
+function submitAnswer() {
+  if (answered) return; // guard against double-grading
+  answered = true;
+  const ok = checkAnswer(transcript);
+  if (ok) correct++; else wrong++;
+  renderResult(ok ? 'correct' : 'wrong');
+}
+
+// User pressed Skip — mark as skipped and show the answer
+function skipQuestion() {
+  if (answered) return;
+  stopListening();
+  answered = true;
+  skipped++;
+  renderResult('skip');
+}
+
+// Build and inject the result card HTML, then reveal Next / hide Skip
+function renderResult(type) {
+  const q = deck[idx];
+
+  // Show up to 4 accepted answers in the result card for reference
+  const shown = q.a
+    .slice(0, Math.min(4, q.a.length))
+    .map(a => a.charAt(0).toUpperCase() + a.slice(1))
+    .join(', ');
+
+  let html = '';
+  if (type === 'correct') {
+    html = `<div class="result result-correct">
+      <div class="result-label">&#10003; Correct!</div>
+      <div class="result-answers">Accepted answers include: ${shown}</div>
+    </div>`;
+  } else if (type === 'wrong') {
+    html = `<div class="result result-wrong">
+      <div class="result-label">&#10007; Not quite — you said: &ldquo;${transcript || '(nothing heard)'}&rdquo;</div>
+      <div class="result-answers">Correct answers include: ${shown}</div>
+    </div>`;
+  } else {
+    html = `<div class="result result-skip">
+      <div class="result-label">Skipped</div>
+      <div class="result-answers">Correct answers include: ${shown}</div>
+    </div>`;
+  }
+
+  document.getElementById('resultArea').innerHTML = html;
+
+  // Hide mic, show Next button, hide Skip button
+  if (hasMic) document.getElementById('micArea').style.display = 'none';
+  document.getElementById('nextRow').style.display = 'flex';
+  document.getElementById('skipRow').style.display = 'none';
+
+  updateScoreDisplay();
+}
+
+// Refresh the progress bar and score chips without rebuilding the whole page
+function updateScoreDisplay() {
+  const done = idx + (answered ? 1 : 0);
+  const pct  = deck.length > 0 ? Math.round((done / deck.length) * 100) : 0;
+
+  const pf = document.getElementById('progressFill');
+  if (pf) pf.style.width = pct + '%';
+
+  const pl = document.getElementById('progressLabel');
+  if (pl) pl.textContent = done + ' / ' + deck.length;
+
+  const cc = document.getElementById('chipCorrect');
+  if (cc) cc.textContent = correct + ' correct';
+
+  const cw = document.getElementById('chipWrong');
+  if (cw) cw.textContent = wrong + ' wrong';
+
+  const cs = document.getElementById('chipSkip');
+  if (cs) cs.textContent = skipped + ' skipped';
+}
+
+// Advance to the next question (or summary if deck is finished)
+function nextQuestion() {
+  idx++;
+  answered  = false;
+  transcript = '';
+  if (idx >= deck.length) {
+    renderSummary();
+  } else {
+    render();
+  }
+}
+
+// ================================================================
+//  RENDER — builds the question UI and injects it into #quizArea
+//  We use innerHTML replacement instead of show/hide toggling
+//  so there's no stale state to manage between questions.
+// ================================================================
+function render() {
+  if (idx >= deck.length) { renderSummary(); return; }
+
+  const q   = deck[idx];
+  const done = idx;
+  const pct  = deck.length > 0 ? Math.round((done / deck.length) * 100) : 0;
+
+  // Warning block shown when the browser doesn't support speech recognition
+  const noMicBlock = !hasMic
+    ? `<div class="no-mic-warn">
+        &#9888; Speech recognition isn't supported in this browser.
+        Open this file in <strong>Chrome</strong> or <strong>Edge</strong> for mic support.
+        You can still read the question and tap Skip to see the answer.
+       </div>`
+    : '';
+
+  // Mic UI — only rendered when the browser supports it
+  const micBlock = hasMic
+    ? `<div class="mic-area" id="micArea">
+        <button class="mic-btn" id="micBtn" onclick="toggleMic()" aria-label="Toggle microphone">
+          ${svgMic()}
+        </button>
+        <div class="transcript placeholder" id="transcriptBox">Tap the mic and speak your answer</div>
+        <span class="mic-hint">Tap once to start &middot; tap again to stop &amp; check</span>
+       </div>`
+    : '';
+
+  // Which label to show next to the question number
+  const modeLabel = deck.length === 20 ? 'Starred (65/20)' : 'All 128';
+
+  document.getElementById('quizArea').innerHTML = `
+    <div class="progress-row">
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:${pct}%"></div>
+      </div>
+      <span class="progress-count" id="progressLabel">${done} / ${deck.length}</span>
+    </div>
+
+    <div class="chips">
+      <span class="chip chip-c" id="chipCorrect">${correct} correct</span>
+      <span class="chip chip-w" id="chipWrong">${wrong} wrong</span>
+      <span class="chip chip-s" id="chipSkip">${skipped} skipped</span>
+    </div>
+
+    ${noMicBlock}
+
+    <div class="q-card">
+      <div class="q-num">Question ${q.n} &nbsp;&middot;&nbsp; ${modeLabel}</div>
+      <div class="q-text">${q.q}</div>
+    </div>
+
+    ${micBlock}
+
+    <!-- Result card appears here after answering (empty until then) -->
+    <div id="resultArea"></div>
+
+    <!-- Next button — hidden until question is answered -->
+    <div class="action-row" id="nextRow" style="display:none;">
+      <button class="btn btn-primary" onclick="nextQuestion()">Next question &rarr;</button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <!-- Skip button — visible while question is unanswered -->
+    <div class="action-row" id="skipRow">
+      <button class="btn btn-muted" onclick="skipQuestion()">Skip this question</button>
+    </div>
+  `;
+}
+
+// ================================================================
+//  SUMMARY SCREEN — shown after all questions in the deck are done
+// ================================================================
+function renderSummary() {
+  const total  = correct + wrong + skipped;
+  const pct    = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  // USCIS passing thresholds:
+  // Full test  — 12/20 correct (60%) from 128 questions
+  // 65/20 test — 6/10 correct  (60%) from 20 starred questions
+  const passed = pct >= 60;
+
+  const passLine = passed
+    ? `<div class="pass-badge">&#10003; Passing score — great work!</div><br>`
+    : `<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">
+        Need 60% to pass — keep practicing! You're getting there.
+       </p>`;
+
+  document.getElementById('quizArea').innerHTML = `
+    <div class="summary">
+      <div class="summary-title">Quiz complete</div>
+      <div class="summary-pct">${pct}%</div>
+      <div class="summary-sub">${correct} of ${total} answered correctly</div>
+      ${passLine}
+      <div class="summary-grid">
+        <div class="stat-box sc">
+          <div class="stat-num">${correct}</div>
+          <div class="stat-lbl">Correct</div>
+        </div>
+        <div class="stat-box sw">
+          <div class="stat-num">${wrong}</div>
+          <div class="stat-lbl">Wrong</div>
+        </div>
+        <div class="stat-box ss">
+          <div class="stat-num">${skipped}</div>
+          <div class="stat-lbl">Skipped</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="max-width:220px;margin:0 auto;" onclick="restart()">
+        &#x21BA; Try again
+      </button>
+    </div>
+  `;
+}
+
+// ================================================================
+//  INIT — build the deck and render the first question on page load
+// ================================================================
+buildDeck();
+render();
+</script>
+</body>
+</html>
