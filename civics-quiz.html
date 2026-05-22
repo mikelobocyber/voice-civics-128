@@ -976,7 +976,6 @@ function onStateChange() {
   const info = document.getElementById('stateInfo');
 
   if (!code) {
-    // No state chosen — hide the info panel
     info.classList.remove('visible');
     info.innerHTML = '';
     return;
@@ -985,7 +984,9 @@ function onStateChange() {
   // Swap in the real answers for Q23, Q29, Q61, Q62
   updateStateQuestions(code);
 
-  // Show a preview of state-specific answers below the picker
+  // Show the preview — but only before the quiz starts.
+  // Once the quiz begins, hideStateInfo() removes it so the
+  // answers aren't visible while those questions come up.
   const s = STATE_DATA[code];
   info.innerHTML =
     `<strong>Governor:</strong> ${s.gov}<br>` +
@@ -993,6 +994,22 @@ function onStateChange() {
     `<strong>Capital:</strong> ${s.capital}<br>` +
     `<strong>Representative:</strong> ${s.rep}`;
   info.classList.add('visible');
+}
+
+// Called when the first question renders — hides the state answers
+// so they're not sitting on screen during the quiz
+function hideStateInfo() {
+  const info = document.getElementById('stateInfo');
+  if (info) info.classList.remove('visible');
+}
+
+// Called on restart or summary — restores the panel so the user
+// can review or change their state before going again
+function showStateInfo() {
+  const code = document.getElementById('stateSelect').value;
+  if (!code) return;
+  const info = document.getElementById('stateInfo');
+  if (info) info.classList.add('visible');
 }
 
 // Patch the answers arrays for the four state-dependent questions
@@ -1055,9 +1072,12 @@ function buildDeck() {
 // ================================================================
 //  RESTART
 //  Stop any active recording, rebuild the deck, re-render.
+//  Restores the state info panel so the user can change their
+//  state before starting again.
 // ================================================================
 function restart() {
   stopListening();
+  showStateInfo();
   buildDeck();
   render();
 }
@@ -1338,6 +1358,10 @@ function nextQuestion() {
 function render() {
   if (idx >= deck.length) { renderSummary(); return; }
 
+  // Hide the state info panel while the quiz is running —
+  // we don't want the governor/senator answers sitting on screen
+  hideStateInfo();
+
   const q   = deck[idx];
   const done = idx;
   const pct  = deck.length > 0 ? Math.round((done / deck.length) * 100) : 0;
@@ -1409,6 +1433,10 @@ function render() {
 //  SUMMARY SCREEN — shown after all questions in the deck are done
 // ================================================================
 function renderSummary() {
+  // Quiz is over — restore the state info panel so the user can
+  // review or change their state before trying again
+  showStateInfo();
+
   const total  = correct + wrong + skipped;
   const pct    = total > 0 ? Math.round((correct / total) * 100) : 0;
 
