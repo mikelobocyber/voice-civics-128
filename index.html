@@ -583,6 +583,7 @@
     <select id="modeSelect" class="mode-select" onchange="restart()">
       <option value="shuffle">Shuffled (all 128)</option>
       <option value="order">In order (1–128)</option>
+      <option value="exam">Exam simulation (20 questions)</option>
       <option value="starred">65/20 special (20 starred only)</option>
     </select>
     <button class="btn-restart" onclick="restart()">&#x21BA; Restart</button>
@@ -1055,6 +1056,7 @@ function updateStateQuestions(code) {
 //  Assembles the question list based on the selected mode.
 //  "shuffle"  = all 128 in random order
 //  "order"    = all 128 in question-number order
+//  "exam"     = 20 random questions, strict pass/fail simulation
 //  "starred"  = only the 20 questions marked star:true
 // ================================================================
 function buildDeck() {
@@ -1062,8 +1064,10 @@ function buildDeck() {
 
   if (mode === 'starred') {
     deck = QUESTIONS.filter(q => q.star);
+  } else if (mode === 'exam') {
+    // Pick 20 random questions from the full 128, just like the real test
+    deck = [...QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
   } else if (mode === 'shuffle') {
-    // Fisher-Yates-adjacent shuffle using sort + random
     deck = [...QUESTIONS].sort(() => Math.random() - 0.5);
   } else {
     deck = [...QUESTIONS]; // original 1–128 order
@@ -1285,9 +1289,13 @@ function skipQuestion() {
 
 // Build and inject the result card HTML, then reveal Next / hide Skip
 function renderResult(type) {
-  const q = deck[idx];
+  const q    = deck[idx];
+  const mode = document.getElementById('modeSelect').value;
+  const isExam = mode === 'exam';
 
-  // Show up to 4 accepted answers in the result card for reference
+  // In exam mode we don't reveal the correct answer after a wrong response —
+  // that would defeat the purpose of simulating the real test.
+  // In study modes we always show accepted answers so the user can learn.
   const shown = q.a
     .slice(0, Math.min(4, q.a.length))
     .map(a => a.charAt(0).toUpperCase() + a.slice(1))
@@ -1297,14 +1305,15 @@ function renderResult(type) {
   if (type === 'correct') {
     html = `<div class="result result-correct">
       <div class="result-label">&#10003; Correct!</div>
-      <div class="result-answers">Accepted answers include: ${shown}</div>
+      ${!isExam ? `<div class="result-answers">Accepted answers include: ${shown}</div>` : ''}
     </div>`;
   } else if (type === 'wrong') {
     html = `<div class="result result-wrong">
       <div class="result-label">&#10007; Not quite — you said: &ldquo;${transcript || '(nothing heard)'}&rdquo;</div>
-      <div class="result-answers">Correct answers include: ${shown}</div>
+      ${!isExam ? `<div class="result-answers">Correct answers include: ${shown}</div>` : '<div class="result-answers">Keep going — review your answers at the end.</div>'}
     </div>`;
   } else {
+    // Skip — only possible in non-exam modes
     html = `<div class="result result-skip">
       <div class="result-label">Skipped</div>
       <div class="result-answers">Correct answers include: ${shown}</div>
@@ -1366,9 +1375,14 @@ function render() {
   // we don't want the governor/senator answers sitting on screen
   hideStateInfo();
 
-  const q   = deck[idx];
-  const done = idx;
-  const pct  = deck.length > 0 ? Math.round((done / deck.length) * 100) : 0;
+  const q      = deck[idx];
+  const done   = idx;
+  const pct    = deck.length > 0 ? Math.round((done / deck.length) * 100) : 0;
+  const mode   = document.getElementById('modeSelect').value;
+  const isExam = mode === 'exam'; // controls skip visibility and answer reveals
+
+  // Label shown in the question card next to the question number
+  const modeLabel = isExam ? 'Exam simulation' : deck.length === 20 ? 'Starred (65/20)' : 'All 128';
 
   // Warning block shown when the browser doesn't support speech recognition
   const noMicBlock = !hasMic
@@ -1389,9 +1403,6 @@ function render() {
         <span class="mic-hint">Tap once to start &middot; tap again to stop &amp; check</span>
        </div>`
     : '';
-
-  // Which label to show next to the question number
-  const modeLabel = deck.length === 20 ? 'Starred (65/20)' : 'All 128';
 
   document.getElementById('quizArea').innerHTML = `
     <div class="progress-row">
@@ -1426,8 +1437,8 @@ function render() {
 
     <div class="spacer"></div>
 
-    <!-- Skip button — visible while question is unanswered -->
-    <div class="action-row" id="skipRow">
+    <!-- Skip button — hidden in exam mode since the real test has no skipping -->
+    <div class="action-row" id="skipRow" ${isExam ? 'style="display:none;"' : ''}>
       <button class="btn btn-muted" onclick="skipQuestion()">Skip this question</button>
     </div>
   `;
@@ -1443,25 +1454,46 @@ function renderSummary() {
 
   const total  = correct + wrong + skipped;
   const pct    = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const mode   = document.getElementById('modeSelect').value;
+  const isExam = mode === 'exam';
 
-  // USCIS passing thresholds:
-  // Full test  — 12/20 correct (60%) from 128 questions
-  // 65/20 test — 6/10 correct  (60%) from 20 starred questions
-  const passed = pct >= 60;
+  // Exam mode uses the real USCIS threshold: 12 out of 20 correct to pass.
+  // All other modes use 60% as a general guide.
+  // 65/20 mode threshold is also 60% (6 out of 10).
+  let passed, passLine;
 
-  const passLine = passed
-    ? `<div class="pass-badge">&#10003; Passing score — great work!</div><br>`
-    : `<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">
-        Need 60% to pass — keep practicing! You're getting there.
-       </p>`;
+  if (isExam) {
+    // Real test: 20 questions, need 12 correct
+    passed = correct >= 12;
+    passLine = passed
+      ? `<div class="pass-badge">&#10003; You passed! ${correct}/20 correct (need 12)</div><br>`
+      : `<p style="font-size:13px;color:var(--red-text);margin-bottom:20px;font-weight:500;">
+          You did not pass this time. ${correct}/20 correct — need 12. Keep practicing!
+         </p>`;
+  } else {
+    passed = pct >= 60;
+    passLine = passed
+      ? `<div class="pass-badge">&#10003; Passing score — great work!</div><br>`
+      : `<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">
+          Need 60% to pass — keep practicing! You're getting there.
+         </p>`;
+  }
+
+  // In exam mode we tracked wrong answers but not skipped (no skip button),
+  // so only show the skipped stat in non-exam modes
+  const skipStat = !isExam
+    ? `<div class="stat-box ss"><div class="stat-num">${skipped}</div><div class="stat-lbl">Skipped</div></div>`
+    : '';
+
+  const gridCols = isExam ? '1fr 1fr' : '1fr 1fr 1fr';
 
   document.getElementById('quizArea').innerHTML = `
     <div class="summary">
-      <div class="summary-title">Quiz complete</div>
-      <div class="summary-pct">${pct}%</div>
+      <div class="summary-title">${isExam ? 'Exam simulation complete' : 'Quiz complete'}</div>
+      <div class="summary-pct">${isExam ? correct + '/20' : pct + '%'}</div>
       <div class="summary-sub">${correct} of ${total} answered correctly</div>
       ${passLine}
-      <div class="summary-grid">
+      <div class="summary-grid" style="grid-template-columns:${gridCols}">
         <div class="stat-box sc">
           <div class="stat-num">${correct}</div>
           <div class="stat-lbl">Correct</div>
@@ -1470,10 +1502,7 @@ function renderSummary() {
           <div class="stat-num">${wrong}</div>
           <div class="stat-lbl">Wrong</div>
         </div>
-        <div class="stat-box ss">
-          <div class="stat-num">${skipped}</div>
-          <div class="stat-lbl">Skipped</div>
-        </div>
+        ${skipStat}
       </div>
       <button class="btn btn-primary" style="max-width:220px;margin:0 auto;" onclick="restart()">
         &#x21BA; Try again

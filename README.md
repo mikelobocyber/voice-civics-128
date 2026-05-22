@@ -16,9 +16,10 @@ Built by [mikelobocyber](https://github.com/mikelobocyber).
 - **Speech recognition** — speak your answer, the app grades it automatically
 - **Fuzzy matching** — small pronunciation differences and slight wording variations still count as correct, matching how the real oral interview works
 - **State picker** — select your state to get the correct answers for the four state-specific questions (governor, senators, capital, representative)
-- **Three quiz modes** — shuffled, in order (1–128), or the 20 starred questions for the 65/20 senior accommodation
+- **Four quiz modes** — shuffled, in order (1–128), exam simulation, or the 20 starred questions for the 65/20 senior accommodation
+- **Exam simulation mode** — 20 random questions, no skipping, no answer reveals, real pass/fail threshold (12/20 correct)
 - **Score tracking** — live correct/wrong/skipped counters and a progress bar
-- **End-of-quiz summary** — shows your percentage and whether you would pass
+- **End-of-quiz summary** — shows your score and whether you would pass
 - **Works on phones** — responsive layout, large tap targets, tested on iOS and Android
 
 ---
@@ -121,6 +122,19 @@ Four questions have answers that vary by state. When you select your state from 
 | Q62 — What is the capital of your state? | Your state capital |
 
 > **Important:** Officeholder names change. Always verify current names at [uscis.gov/citizenship/testupdates](https://www.uscis.gov/citizenship/testupdates) before your actual interview. The answers in this app were last verified in May 2026.
+
+---
+
+## Exam simulation mode
+
+The real civics test is 20 random questions from the pool of 128. You need 12 correct to pass. Exam simulation mode replicates that as closely as possible:
+
+- 20 questions drawn at random from all 128
+- No skip button — just like the real interview, you have to answer
+- No answer reveals after a wrong response — the app marks it and moves on so you can't learn mid-exam
+- Pass/fail result at the end based on the real threshold: 12 out of 20 correct
+
+Use the study modes (shuffled or in order) to learn the material, then switch to exam simulation when you want to test yourself honestly.
 
 ---
 
