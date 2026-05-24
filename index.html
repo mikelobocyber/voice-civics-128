@@ -542,6 +542,179 @@
     line-height: 1.9;
   }
   footer a { color: var(--text-muted); }
+
+  /* ── Mode tabs (Study / Quiz) ────────────────────────────── 
+     Sits below the header. Switches between the study browser
+     and the voice quiz. Only one panel is visible at a time. */
+  .mode-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 11px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    touch-action: manipulation;
+  }
+  .mode-tab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .mode-tab:not(.active):hover { background: var(--bg); }
+
+  /* ── Study panel ─────────────────────────────────────────── */
+  .study-panel { display: none; }
+  .study-panel.visible { display: block; }
+
+  /* Section list on the study home screen */
+  .section-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .section-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: background 0.15s;
+    touch-action: manipulation;
+  }
+  .section-card:hover { background: var(--bg); }
+  .section-card-left { display: flex; flex-direction: column; gap: 3px; }
+  .section-tag {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-light);
+  }
+  .section-name { font-size: 15px; color: var(--text); }
+  .section-card-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .section-count { font-size: 12px; color: var(--text-light); }
+  .section-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Study tip box on the home screen */
+  .study-howto {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    margin-bottom: 4px;
+  }
+  .study-howto-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 10px;
+  }
+  .study-howto p { font-size: 13px; color: var(--text-muted); line-height: 1.8; }
+  .study-howto strong { color: var(--text); font-weight: 500; }
+
+  /* Section reference view — shows all Q&A for a section at once */
+  .study-view { display: none; }
+  .study-view.visible { display: block; }
+
+  .study-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .btn-back-study {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.15s;
+  }
+  .btn-back-study:hover { background: var(--bg); }
+  .study-section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: var(--text);
+  }
+
+  /* Individual Q&A row in the reference view */
+  .qa-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+  .qa-question {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .qa-num {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 5px;
+  }
+  .qa-answer {
+    font-size: 14px;
+    color: var(--accent-text);
+    background: var(--accent-light);
+    border-radius: 6px;
+    padding: 8px 12px;
+    line-height: 1.6;
+  }
+
+  /* Priority star badge */
+  .star-badge {
+    display: inline-block;
+    font-size: 10px;
+    background: var(--gold-light);
+    color: var(--gold);
+    padding: 1px 7px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
@@ -552,10 +725,57 @@
     <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
   </div>
   <h1>U.S. Civics Test Practice</h1>
-  <p class="subtitle">128 official USCIS questions &middot; speak your answers</p>
+  <p class="subtitle">128 official USCIS questions &middot; 2025 version</p>
 </header>
 
 <main>
+
+  <!-- ── MODE TABS ──────────────────────────────────────────────
+       Two modes: Study (browse sections, reveal answers) and
+       Quiz (voice-based grading with speech recognition).
+       Switching tabs shows/hides the relevant panel. -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tabQuiz" onclick="switchMode('quiz')">&#127908; Quiz</button>
+    <button class="mode-tab" id="tabStudy" onclick="switchMode('study')">&#128218; Study</button>
+  </div>
+
+  <!-- ── STUDY PANEL ────────────────────────────────────────────
+       A read-only reference guide. Pick a section, see all the
+       questions and answers at once. No mic, no TTS, no grading.
+       Just read, learn, then switch to Quiz when ready. -->
+  <div class="study-panel" id="studyPanel">
+
+    <!-- Section list home -->
+    <div id="studyHome">
+      <div class="section-list" id="sectionList"></div>
+      <div class="study-howto">
+        <div class="study-howto-title">How to use</div>
+        <p>
+          Pick a section to see all the questions and answers for that group.
+          Read through them, say each answer out loud to yourself, then switch
+          to the <strong>Quiz tab</strong> to test yourself with your voice.<br><br>
+          <strong>&#9733; = priority question</strong> — these come up most often on the real exam.
+        </p>
+      </div>
+    </div>
+
+    <!-- Section reference view — all Q&A for a section, visible at once -->
+    <div id="studyView" class="study-view">
+      <div class="study-topbar">
+        <button class="btn-back-study" onclick="backToSections()">&#8592; All sections</button>
+        <div class="study-section-title" id="studySectionTitle"></div>
+      </div>
+      <!-- Q&A rows are injected here by renderStudySection() -->
+      <div id="studyQAList"></div>
+    </div>
+
+  </div><!-- end studyPanel -->
+
+  <!-- ── QUIZ PANEL ─────────────────────────────────────────────
+       Shows when the Quiz tab is active. Contains the full
+       voice quiz with speech recognition and exam simulation. -->
+
+  <div id="quizPanel">
 
   <!-- ── STATE PICKER ──────────────────────────────────────────
        Choosing a state customizes four questions:
@@ -648,6 +868,8 @@
        its innerHTML every time a new question loads, so there's
        no complicated state to keep in sync with the DOM. -->
   <div id="quizArea"></div>
+
+  </div><!-- end quizPanel -->
 
 </main>
 
@@ -1690,6 +1912,314 @@ function renderSummary() {
 // ================================================================
 buildDeck();
 render();
+
+// ================================================================
+//  MODE SWITCHING
+//  Toggles between Study panel and Quiz panel.
+//  Study is shown by default so users learn before they test.
+// ================================================================
+function switchMode(mode) {
+  const studyPanel = document.getElementById('studyPanel');
+  const quizPanel  = document.getElementById('quizPanel');
+  const tabStudy   = document.getElementById('tabStudy');
+  const tabQuiz    = document.getElementById('tabQuiz');
+
+  if (mode === 'quiz') {
+    quizPanel.style.display  = 'block';
+    studyPanel.style.display = 'none';
+    tabQuiz.classList.add('active');
+    tabStudy.classList.remove('active');
+  } else {
+    studyPanel.style.display = 'block';
+    quizPanel.style.display  = 'none';
+    tabStudy.classList.add('active');
+    tabQuiz.classList.remove('active');
+    // Cancel any quiz speech when switching away
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    stopListening();
+  }
+}
+
+// ================================================================
+//  STUDY MODE — SECTION DATA
+//  Each section has a title, color, and questions with bullet-point
+//  summary answers (compressed, easy to memorize at a glance).
+//  State-specific answers (Q23, Q29, Q61, Q62) are updated by
+//  updateStateQuestions() the same way the quiz mode handles them.
+// ================================================================
+const SECTIONS = [
+  {
+    id: 1,
+    title: "A: Principles of American Government",
+    tag: "Questions 1–15",
+    color: "#1B4332",
+    questions: [
+      {n:1,  q:"What is the form of government of the United States?",                                          b:"Republic / representative democracy",                                    star:false},
+      {n:2,  q:"What is the supreme law of the land?",                                                          b:"The U.S. Constitution",                                                  star:true},
+      {n:3,  q:"Name one thing the U.S. Constitution does.",                                                    b:"Forms the government / defines powers / protects rights",                star:false},
+      {n:4,  q:'The U.S. Constitution starts with "We the People." What does that mean?',                      b:"Self-government / popular sovereignty / consent of the governed",        star:false},
+      {n:5,  q:"How are changes made to the U.S. Constitution?",                                                b:"Amendments / the amendment process",                                     star:false},
+      {n:6,  q:"What does the Bill of Rights protect?",                                                         b:"The basic rights of Americans",                                          star:false},
+      {n:7,  q:"How many amendments does the U.S. Constitution have?",                                          b:"27",                                                                     star:true},
+      {n:8,  q:"Why is the Declaration of Independence important?",                                             b:"Free from Britain / all people are created equal / identifies rights",   star:false},
+      {n:9,  q:"What founding document said the American colonies were free from Britain?",                     b:"Declaration of Independence",                                            star:false},
+      {n:10, q:"Name two important ideas from the Declaration of Independence and the U.S. Constitution.",      b:"Equality, liberty, natural rights, self-government, limited government",  star:false},
+      {n:11, q:'"Life, Liberty, and the pursuit of Happiness" — what founding document?',                      b:"Declaration of Independence",                                            star:false},
+      {n:12, q:"What is the economic system of the United States?",                                             b:"Capitalism / free market economy",                                       star:true},
+      {n:13, q:"What is the rule of law?",                                                                      b:"Everyone must follow the law — no one is above it",                      star:false},
+      {n:14, q:"Many documents influenced the U.S. Constitution. Name one.",                                    b:"Declaration of Independence / Articles of Confederation / Federalist Papers / Mayflower Compact", star:false},
+      {n:15, q:"There are three branches of government. Why?",                                                  b:"Checks and balances / separation of powers",                             star:false},
+    ]
+  },
+  {
+    id: 2,
+    title: "B: System of Government — Congress & President",
+    tag: "Questions 16–49",
+    color: "#1D4E89",
+    questions: [
+      {n:16, q:"Name the three branches of government.",                                                        b:"Legislative, executive, judicial",                                       star:false},
+      {n:17, q:"The President is in charge of which branch?",                                                   b:"Executive branch",                                                       star:false},
+      {n:18, q:"What part of the federal government writes laws?",                                              b:"Congress / legislative branch",                                          star:false},
+      {n:19, q:"What are the two parts of the U.S. Congress?",                                                  b:"Senate and House of Representatives",                                    star:false},
+      {n:20, q:"Name one power of the U.S. Congress.",                                                          b:"Writes laws / declares war / makes the federal budget",                  star:true},
+      {n:21, q:"How many U.S. senators are there?",                                                             b:"100",                                                                    star:false},
+      {n:22, q:"How long is a term for a U.S. senator?",                                                        b:"6 years",                                                                star:false},
+      {n:23, q:"Who is one of your state's U.S. senators now?",                                                 b:"Varies by state — select your state above",                              star:false},
+      {n:24, q:"How many voting members are in the House of Representatives?",                                  b:"435",                                                                    star:false},
+      {n:25, q:"How long is a term for a member of the House of Representatives?",                              b:"2 years",                                                                star:false},
+      {n:26, q:"Why do U.S. representatives serve shorter terms than U.S. senators?",                           b:"To more closely follow public opinion",                                  star:false},
+      {n:27, q:"How many senators does each state have?",                                                       b:"2 per state",                                                            star:false},
+      {n:28, q:"Why does each state have two senators?",                                                        b:"Equal representation / Great Compromise",                                star:false},
+      {n:29, q:"Name your U.S. representative.",                                                                b:"Varies by district — check house.gov",                                   star:false},
+      {n:30, q:"What is the name of the Speaker of the House of Representatives now?",                          b:"Mike Johnson",                                                           star:true},
+      {n:31, q:"Who does a U.S. senator represent?",                                                            b:"Citizens of their state",                                                star:false},
+      {n:32, q:"Who elects U.S. senators?",                                                                     b:"Citizens from their state",                                              star:false},
+      {n:33, q:"Who does a member of the House of Representatives represent?",                                  b:"Citizens in their congressional district",                               star:false},
+      {n:34, q:"Who elects members of the House of Representatives?",                                           b:"Citizens from their district",                                           star:false},
+      {n:35, q:"Some states have more representatives than others. Why?",                                       b:"Larger population = more representatives",                               star:false},
+      {n:36, q:"The President is elected for how many years?",                                                  b:"4 years",                                                                star:true},
+      {n:37, q:"The President can serve only two terms. Why?",                                                   b:"22nd Amendment / prevent too much power",                                star:false},
+      {n:38, q:"What is the name of the President of the United States now?",                                   b:"Donald Trump",                                                           star:true},
+      {n:39, q:"What is the name of the Vice President of the United States now?",                              b:"JD Vance",                                                               star:true},
+      {n:40, q:"If the president can no longer serve, who becomes president?",                                  b:"The Vice President",                                                     star:false},
+      {n:41, q:"Name one power of the president.",                                                              b:"Signs bills / vetoes bills / Commander in Chief / appoints judges",      star:false},
+      {n:42, q:"Who is Commander in Chief of the U.S. military?",                                               b:"The President",                                                          star:false},
+      {n:43, q:"Who signs bills to become laws?",                                                               b:"The President",                                                          star:false},
+      {n:44, q:"Who vetoes bills?",                                                                             b:"The President",                                                          star:true},
+      {n:45, q:"Who appoints federal judges?",                                                                  b:"The President",                                                          star:false},
+      {n:46, q:"The executive branch has many parts. Name one.",                                                b:"President / Cabinet / federal departments and agencies",                 star:false},
+      {n:47, q:"What does the President's Cabinet do?",                                                         b:"Advises the President",                                                  star:false},
+      {n:48, q:"What are two Cabinet-level positions?",                                                         b:"Secretary of State, Secretary of Defense, Attorney General, VP… (many options)", star:false},
+      {n:49, q:"Why is the Electoral College important?",                                                       b:"Decides who is elected president",                                       star:false},
+    ]
+  },
+  {
+    id: 3,
+    title: "B: System of Government — Courts & States",
+    tag: "Questions 50–62",
+    color: "#2D6A4F",
+    questions: [
+      {n:50, q:"What is one part of the judicial branch?",                                                      b:"Supreme Court / federal courts",                                         star:false},
+      {n:51, q:"What does the judicial branch do?",                                                             b:"Reviews and explains laws / resolves disputes / decides if laws are constitutional", star:false},
+      {n:52, q:"What is the highest court in the United States?",                                               b:"The Supreme Court",                                                      star:true},
+      {n:53, q:"How many seats are on the Supreme Court?",                                                      b:"9",                                                                      star:false},
+      {n:54, q:"How many Supreme Court justices are usually needed to decide a case?",                          b:"5",                                                                      star:false},
+      {n:55, q:"How long do Supreme Court justices serve?",                                                     b:"For life / lifetime appointment",                                        star:false},
+      {n:56, q:"Supreme Court justices serve for life. Why?",                                                   b:"To be independent of politics / limit outside influence",                star:false},
+      {n:57, q:"Who is the Chief Justice of the United States now?",                                            b:"John Roberts",                                                           star:false},
+      {n:58, q:"Name one power that is only for the federal government.",                                       b:"Print money / declare war / create an army / make treaties",             star:false},
+      {n:59, q:"Name one power that is only for the states.",                                                   b:"Education / police / driver's licenses / zoning",                        star:false},
+      {n:60, q:"What is the purpose of the 10th Amendment?",                                                   b:"Powers not given to the federal government belong to the states or the people", star:false},
+      {n:61, q:"Who is the governor of your state now?",                                                        b:"Varies by state — select your state above",                              star:true},
+      {n:62, q:"What is the capital of your state?",                                                            b:"Varies by state — select your state above",                              star:false},
+    ]
+  },
+  {
+    id: 4,
+    title: "C: Rights and Responsibilities",
+    tag: "Questions 63–72",
+    color: "#744210",
+    questions: [
+      {n:63, q:"There are four amendments about who can vote. Describe one.",                                   b:"18+ can vote / no poll tax / any citizen / any race can vote",            star:false},
+      {n:64, q:"Who can vote in federal elections, run for federal office, and serve on a jury?",               b:"U.S. citizens only",                                                     star:false},
+      {n:65, q:"What are three rights of everyone living in the United States?",                                b:"Freedom of speech, religion, assembly, petition, press, right to bear arms", star:false},
+      {n:66, q:"What do we show loyalty to when we say the Pledge of Allegiance?",                             b:"The United States / the flag",                                           star:true},
+      {n:67, q:"Name two promises that new citizens make in the Oath of Allegiance.",                           b:"Give up other loyalties / defend Constitution / obey laws / serve if needed", star:false},
+      {n:68, q:"How can people become United States citizens?",                                                 b:"Born in the U.S. / naturalize / derive citizenship",                     star:false},
+      {n:69, q:"What are two examples of civic participation in the United States?",                            b:"Vote / run for office / join a party / contact officials / join civic group", star:false},
+      {n:70, q:"What is one way Americans can serve their country?",                                            b:"Vote / pay taxes / obey the law / serve in the military / work for government", star:false},
+      {n:71, q:"Why is it important to pay federal taxes?",                                                     b:"Required by law / funds the federal government / 16th Amendment",         star:false},
+      {n:72, q:"Men age 18–25 must register for the Selective Service. Name one reason why.",                   b:"Required by law / civic duty / makes the draft fair",                    star:false},
+    ]
+  },
+  {
+    id: 5,
+    title: "History A: Colonial Period & Independence",
+    tag: "Questions 73–89",
+    color: "#7B341E",
+    questions: [
+      {n:73, q:"The colonists came to America for many reasons. Name one.",                                     b:"Freedom / religious freedom / economic opportunity / escape persecution",  star:false},
+      {n:74, q:"Who lived in America before the Europeans arrived?",                                            b:"American Indians / Native Americans",                                    star:true},
+      {n:75, q:"What group of people was taken and sold as slaves?",                                            b:"Africans / people from Africa",                                          star:false},
+      {n:76, q:"What war did the Americans fight to win independence from Britain?",                             b:"American Revolution / Revolutionary War",                                star:false},
+      {n:77, q:"Name one reason why the Americans declared independence from Britain.",                         b:"High taxes / no self-government / Boston Massacre / Stamp Act / quartering soldiers", star:false},
+      {n:78, q:"Who wrote the Declaration of Independence?",                                                    b:"Thomas Jefferson",                                                       star:true},
+      {n:79, q:"When was the Declaration of Independence adopted?",                                             b:"July 4, 1776",                                                           star:false},
+      {n:80, q:"The American Revolution had many important events. Name one.",                                  b:"Bunker Hill / Saratoga / Valley Forge / Yorktown / Declaration of Independence", star:false},
+      {n:81, q:"There were 13 original states. Name five.",                                                     b:"NH, MA, RI, CT, NY, NJ, PA, DE, MD, VA, NC, SC, GA",                    star:false},
+      {n:82, q:"What founding document was written in 1787?",                                                   b:"The U.S. Constitution",                                                  star:false},
+      {n:83, q:"The Federalist Papers supported the U.S. Constitution. Name one of the writers.",               b:"Madison / Hamilton / Jay / Publius",                                     star:false},
+      {n:84, q:"Why were the Federalist Papers important?",                                                     b:"Helped people understand the Constitution / supported its passage",      star:false},
+      {n:85, q:"Benjamin Franklin is famous for many things. Name one.",                                        b:"Inventor / first Postmaster General / helped write Declaration / diplomat", star:false},
+      {n:86, q:"George Washington is famous for many things. Name one.",                                        b:"Father of Our Country / first president / General of the Continental Army", star:true},
+      {n:87, q:"Thomas Jefferson is famous for many things. Name one.",                                         b:"Wrote Declaration of Independence / third president / Louisiana Purchase", star:false},
+      {n:88, q:"James Madison is famous for many things. Name one.",                                            b:"Father of the Constitution / fourth president / Federalist Papers",       star:false},
+      {n:89, q:"Alexander Hamilton is famous for many things. Name one.",                                       b:"First Secretary of the Treasury / Federalist Papers / aide to Washington", star:false},
+    ]
+  },
+  {
+    id: 6,
+    title: "History B: 1800s",
+    tag: "Questions 90–99",
+    color: "#5A4E8C",
+    questions: [
+      {n:90, q:"What territory did the United States buy from France in 1803?",                                 b:"Louisiana Territory",                                                    star:false},
+      {n:91, q:"Name one war fought by the United States in the 1800s.",                                        b:"War of 1812 / Mexican-American War / Civil War / Spanish-American War",  star:false},
+      {n:92, q:"Name the U.S. war between the North and the South.",                                            b:"The Civil War",                                                          star:false},
+      {n:93, q:"The Civil War had many important events. Name one.",                                             b:"Fort Sumter / Emancipation Proclamation / Gettysburg / Appomattox",     star:false},
+      {n:94, q:"Abraham Lincoln is famous for many things. Name one.",                                          b:"Freed the slaves / saved the Union / led during Civil War / Gettysburg Address", star:true},
+      {n:95, q:"What did the Emancipation Proclamation do?",                                                    b:"Freed slaves in the Confederacy / Confederate states",                   star:false},
+      {n:96, q:"What U.S. war ended slavery?",                                                                  b:"The Civil War",                                                          star:false},
+      {n:97, q:"What amendment says all persons born or naturalized in the U.S. are citizens?",                 b:"14th Amendment",                                                         star:false},
+      {n:98, q:"When did all men get the right to vote?",                                                       b:"After the Civil War / Reconstruction / 15th Amendment / 1870",           star:false},
+      {n:99, q:"Name one leader of the women's rights movement in the 1800s.",                                  b:"Susan B. Anthony / Elizabeth Cady Stanton / Sojourner Truth / Harriet Tubman", star:false},
+    ]
+  },
+  {
+    id: 7,
+    title: "History C: Recent American History",
+    tag: "Questions 100–118",
+    color: "#2C5F6E",
+    questions: [
+      {n:100,q:"Name one war fought by the United States in the 1900s.",                                        b:"WWI / WWII / Korean War / Vietnam War / Gulf War",                       star:false},
+      {n:101,q:"Why did the United States enter World War I?",                                                  b:"Germany attacked U.S. ships / support Allied Powers / oppose Central Powers", star:false},
+      {n:102,q:"When did all women get the right to vote?",                                                     b:"1920 / after WWI / 19th Amendment",                                      star:false},
+      {n:103,q:"What was the Great Depression?",                                                                b:"Longest economic recession in modern history",                            star:false},
+      {n:104,q:"When did the Great Depression start?",                                                          b:"1929 / the Great Crash / stock market crash",                            star:false},
+      {n:105,q:"Who was president during the Great Depression and World War II?",                               b:"Franklin Roosevelt (FDR)",                                               star:false},
+      {n:106,q:"Why did the United States enter World War II?",                                                 b:"Bombing of Pearl Harbor / support Allied Powers / oppose Axis Powers",   star:false},
+      {n:107,q:"Dwight Eisenhower is famous for many things. Name one.",                                        b:"General in WWII / 34th president / interstate highway system",           star:false},
+      {n:108,q:"Who was the United States' main rival during the Cold War?",                                    b:"Soviet Union / USSR / Russia",                                           star:false},
+      {n:109,q:"During the Cold War, what was one main concern of the United States?",                          b:"Communism / nuclear war",                                                star:false},
+      {n:110,q:"Why did the United States enter the Korean War?",                                               b:"To stop the spread of communism",                                        star:false},
+      {n:111,q:"Why did the United States enter the Vietnam War?",                                              b:"To stop the spread of communism",                                        star:false},
+      {n:112,q:"What did the civil rights movement do?",                                                        b:"Fought to end racial discrimination",                                    star:false},
+      {n:113,q:"Martin Luther King Jr. is famous for many things. Name one.",                                   b:"Fought for civil rights / worked for equality for all Americans",        star:true},
+      {n:114,q:"Why did the United States enter the Persian Gulf War?",                                         b:"To force the Iraqi military from Kuwait",                                star:false},
+      {n:115,q:"What major event happened on September 11, 2001?",                                              b:"Terrorists attacked the United States — World Trade Center, Pentagon",   star:true},
+      {n:116,q:"Name one U.S. military conflict after the September 11, 2001 attacks.",                        b:"War on Terror / War in Afghanistan / War in Iraq",                       star:false},
+      {n:117,q:"Name one American Indian tribe in the United States.",                                          b:"Cherokee / Navajo / Sioux / Apache / Mohawk / Lakota… (many options)",  star:false},
+      {n:118,q:"Name one example of an American innovation.",                                                   b:"Light bulb / airplane / automobile / assembly line / moon landing",      star:false},
+    ]
+  },
+  {
+    id: 8,
+    title: "Symbols and Holidays",
+    tag: "Questions 119–128",
+    color: "#B22234",
+    questions: [
+      {n:119,q:"What is the capital of the United States?",                                                     b:"Washington, D.C.",                                                       star:false},
+      {n:120,q:"Where is the Statue of Liberty?",                                                               b:"New York Harbor / Liberty Island",                                       star:false},
+      {n:121,q:"Why does the flag have 13 stripes?",                                                            b:"13 original colonies",                                                   star:true},
+      {n:122,q:"Why does the flag have 50 stars?",                                                              b:"One star for each state / 50 states",                                    star:false},
+      {n:123,q:"What is the name of the national anthem?",                                                      b:"The Star-Spangled Banner",                                               star:false},
+      {n:124,q:'The Nation\'s first motto was "E Pluribus Unum." What does that mean?',                        b:"Out of many, one",                                                       star:false},
+      {n:125,q:"What is Independence Day?",                                                                     b:"A holiday to celebrate U.S. independence from Britain / the country's birthday", star:false},
+      {n:126,q:"Name three national U.S. holidays.",                                                            b:"New Year's Day / MLK Day / Memorial Day / Independence Day / Labor Day / Thanksgiving / Christmas", star:true},
+      {n:127,q:"What is Memorial Day?",                                                                         b:"A holiday to honor soldiers who died in military service",                star:false},
+      {n:128,q:"What is Veterans Day?",                                                                         b:"A holiday to honor people in the U.S. military / those who have served", star:false},
+    ]
+  },
+];
+
+// ================================================================
+//  STUDY MODE — STATE
+//  Just tracks which section is open. No grading state needed.
+// ================================================================
+let studySection = null; // currently open section object
+
+// ================================================================
+//  STUDY MODE — BUILD SECTION LIST
+//  Renders the clickable section cards on the study home screen.
+//  Called once on page load.
+// ================================================================
+(function buildSectionList() {
+  const list = document.getElementById('sectionList');
+  SECTIONS.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'section-card';
+    card.innerHTML = `
+      <div class="section-card-left">
+        <div class="section-tag">${s.tag}</div>
+        <div class="section-name">${s.title}</div>
+      </div>
+      <div class="section-card-right">
+        <span class="section-count">${s.questions.length} questions</span>
+        <div class="section-dot" style="background:${s.color}"></div>
+      </div>`;
+    card.onclick = () => openStudySection(s);
+    list.appendChild(card);
+  });
+})();
+
+// ================================================================
+//  STUDY MODE — OPEN SECTION
+//  Renders all questions and answers for a section at once as a
+//  scrollable reference list. No grading, no mic, no TTS.
+//  Just read and learn.
+// ================================================================
+function openStudySection(section) {
+  const stateCode = document.getElementById('stateSelect').value;
+
+  // Build the Q&A list — one row per question, question + green answer visible
+  const qaHTML = section.questions.map(q => {
+    // For state-specific questions, show the actual state answer if a state is selected
+    let answer = q.b;
+    if (stateCode && STATE_DATA[stateCode]) {
+      const sd = STATE_DATA[stateCode];
+      if (q.n === 23) answer = sd.senators.join(' or ');
+      if (q.n === 29) answer = sd.rep;
+      if (q.n === 61) answer = sd.gov;
+      if (q.n === 62) answer = sd.capital;
+    }
+
+    return `
+      <div class="qa-row">
+        <div class="qa-num">
+          Q${q.n}${q.star ? '<span class="star-badge">&#9733; priority</span>' : ''}
+        </div>
+        <div class="qa-question">${q.q}</div>
+        <div class="qa-answer">${answer}</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('studySectionTitle').textContent = section.title;
+  document.getElementById('studyQAList').innerHTML = qaHTML;
+
+  // Show the section view, hide the home list
+  document.getElementById('studyHome').style.display = 'none';
+  document.getElementById('studyView').classList.add('visible');
+
+  // Scroll to top so the user starts at Q1 of the section
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Go back to the section list from the reference view
+function backToSections() {
+  document.getElementById('studyView').classList.remove('visible');
+  document.getElementById('studyHome').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 </script>
 </body>
 </html>

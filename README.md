@@ -13,14 +13,15 @@ Built by [mikelobocyber](https://github.com/mikelobocyber).
 ## What it does
 
 - Covers all **128 official USCIS civics questions** (2025 version)
+- **Two modes** — Quiz (voice-based) and Study (read through all Q&A by section)
 - **Speech recognition** — speak your answer, the app grades it automatically
+- **Read aloud** — the app reads each question out loud before the mic activates, simulating how a real officer asks the question. Toggle it on or off anytime.
 - **Fuzzy matching** — small pronunciation differences and slight wording variations still count as correct, matching how the real oral interview works
 - **State picker** — select your state to get the correct answers for the four state-specific questions (governor, senators, capital, representative)
 - **Four quiz modes** — shuffled, in order (1–128), exam simulation, or the 20 starred questions for the 65/20 senior accommodation
 - **Exam simulation mode** — 20 random questions, no skipping, no answer reveals, real pass/fail threshold (12/20 correct)
 - **Score tracking** — live correct/wrong/skipped counters and a progress bar
 - **End-of-quiz summary** — shows your score and whether you would pass
-- **Read aloud** — the app reads each question out loud before the mic activates, simulating how a real officer asks the question. Toggle it on or off anytime.
 - **Works on phones** — responsive layout, large tap targets, tested on iOS and Android
 
 ---
@@ -71,6 +72,27 @@ The goal isn't to memorize sentences word for word. It's to get to a point where
 
 ---
 
+## Study mode
+
+The Study tab shows all 128 questions and answers organized into eight sections matching the official USCIS structure. Pick a section and scroll through the full Q&A — questions on top, answers highlighted in green below. No mic, no grading, no interaction required.
+
+Use Study to learn the material first. When you feel comfortable with a section, switch to the Quiz tab and test yourself with your voice.
+
+The eight sections are:
+
+- A: Principles of American Government (Q1–15)
+- B: System of Government — Congress and President (Q16–49)
+- B: System of Government — Courts and States (Q50–62)
+- C: Rights and Responsibilities (Q63–72)
+- History A: Colonial Period and Independence (Q73–89)
+- History B: 1800s (Q90–99)
+- History C: Recent American History (Q100–118)
+- Symbols and Holidays (Q119–128)
+
+Questions marked ★ are priority questions that come up most often on the real exam.
+
+---
+
 ## Read aloud mode
 
 When read aloud is turned on (the default), the app reads each question out loud before the mic activates. Three animated dots appear while it's speaking, then the mic button appears and you answer — the same sequence as a real interview where the officer asks and then waits.
@@ -80,61 +102,6 @@ This matters more than it might seem. Hearing the question spoken forces you to 
 The read aloud button sits in the controls bar at the top. Tap it to toggle off if you want to practice reading the questions yourself instead.
 
 The app picks the best available English voice on your device automatically, slightly slower than the default reading speed so it's easier to follow.
-
----
-
-## Browser support
-
-| Browser | Speech recognition |
-|---|---|
-| Chrome (desktop) | ✅ Full support |
-| Edge (desktop) | ✅ Full support |
-| Chrome (Android) | ✅ Full support |
-| Safari (iOS 14.5+) | ✅ Full support |
-| Safari (macOS) | ⚠️ Partial |
-| Firefox | ❌ Not supported |
-
-Use Chrome or Edge for the best experience. Firefox doesn't support the Web Speech API, so the mic won't work at all — and since spoken practice is the whole point, Firefox isn't a useful option for this app.
-
----
-
-## Project structure
-
-```
-index.html    — the entire application (HTML + CSS + JS, one file)
-README.md     — this file
-LICENSE       — MIT license
-```
-
-Everything is in a single HTML file intentionally. There is no build process, no npm, no framework. You can inspect, modify, or redistribute it as-is.
-
----
-
-## How the answer checking works
-
-The real USCIS civics interview is oral and conducted by a human officer who uses reasonable judgment. This app tries to match that with a three-pass fuzzy matching system:
-
-1. **Exact match** after normalizing (lowercase, strip punctuation)
-2. **Substring match** — if what you said contains the correct answer or vice versa
-3. **Word-level fuzzy match** — if ≥80% of the answer's words appear in what you said, with up to 1 character of typo tolerance per word (Levenshtein distance)
-4. **Short-answer edit distance** — for answers of 3 words or fewer, allows up to 2 character edits overall
-
-This means saying "Jefferson" correctly grades Q78 even if the full answer is "Thomas Jefferson." It also means a mispronounced word like "Jeffurson" will still pass.
-
----
-
-## State-specific questions
-
-Four questions have answers that vary by state. When you select your state from the dropdown, these are automatically updated:
-
-| Question | What changes |
-|---|---|
-| Q23 — Who is one of your state's U.S. senators now? | Both senators' names loaded for your state |
-| Q29 — Name your U.S. representative. | Representative name, or district note for multi-district states |
-| Q61 — Who is the governor of your state now? | Governor's name for your state |
-| Q62 — What is the capital of your state? | Your state capital |
-
-> **Important:** Officeholder names change. Always verify current names at [uscis.gov/citizenship/testupdates](https://www.uscis.gov/citizenship/testupdates) before your actual interview. The answers in this app were last verified in May 2026.
 
 ---
 
@@ -154,6 +121,61 @@ Use the study modes (shuffled or in order) to learn the material, then switch to
 ## The 65/20 accommodation
 
 If you are **65 years old or older** and have been a lawful permanent resident for **20 or more years**, USCIS allows you to study only the 20 questions marked with a star (★). Select **"65/20 special (20 starred only)"** from the quiz mode dropdown to practice only those questions. You must answer 6 out of 10 correctly (60%) to pass under this accommodation.
+
+---
+
+## Browser support
+
+| Browser | Speech recognition |
+|---|---|
+| Chrome (desktop) | ✅ Full support |
+| Edge (desktop) | ✅ Full support |
+| Chrome (Android) | ✅ Full support |
+| Safari (iOS 14.5+) | ✅ Full support |
+| Safari (macOS) | ⚠️ Partial |
+| Firefox | ❌ Not supported |
+
+Use Chrome or Edge for the best experience. Firefox doesn't support the Web Speech API, so the mic won't work at all — and since spoken practice is the whole point, Firefox isn't a useful option for this app.
+
+---
+
+## How the answer checking works
+
+The real USCIS civics interview is oral and conducted by a human officer who uses reasonable judgment. This app tries to match that with a three-pass fuzzy matching system:
+
+1. **Exact match** after normalizing (lowercase, strip punctuation)
+2. **Substring match** — if what you said contains the correct answer or vice versa
+3. **Word-level fuzzy match** — if ≥80% of the answer's words appear in what you said, with up to 1 character of typo tolerance per word (Levenshtein distance)
+4. **Short-answer edit distance** — for answers of 3 words or fewer, allows up to 2 character edits overall
+
+This means saying "Jefferson" correctly grades Q78 even if the full answer is "Thomas Jefferson." It also means a mispronounced word like "Jeffurson" will still pass.
+
+---
+
+## State-specific questions
+
+Four questions have answers that vary by state. When you select your state from the dropdown in the Quiz tab, these are automatically updated — and the Study tab shows your state's actual answers too:
+
+| Question | What changes |
+|---|---|
+| Q23 — Who is one of your state's U.S. senators now? | Both senators' names loaded for your state |
+| Q29 — Name your U.S. representative. | Representative name, or district note for multi-district states |
+| Q61 — Who is the governor of your state now? | Governor's name for your state |
+| Q62 — What is the capital of your state? | Your state capital |
+
+> **Important:** Officeholder names change. Always verify current names at [uscis.gov/citizenship/testupdates](https://www.uscis.gov/citizenship/testupdates) before your actual interview. The answers in this app were last verified in May 2026.
+
+---
+
+## Project structure
+
+```
+index.html    — the entire application (HTML + CSS + JS, one file)
+README.md     — this file
+LICENSE       — MIT license
+```
+
+Everything is in a single HTML file intentionally. There is no build process, no npm, no framework. You can inspect, modify, or redistribute it as-is.
 
 ---
 
