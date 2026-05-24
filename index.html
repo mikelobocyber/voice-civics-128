@@ -214,6 +214,54 @@
   }
   .btn-restart:hover { background: var(--bg); }
 
+  /* Read aloud toggle — same shape as restart but with a green active state */
+  .btn-tts {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--accent-light);
+    color: var(--accent-text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn-tts:hover { background: #C3EDD0; }
+  /* Muted style when read aloud is turned off */
+  .btn-tts.off {
+    background: var(--surface);
+    color: var(--text-muted);
+    border-color: var(--border);
+  }
+  .btn-tts.off:hover { background: var(--bg); }
+
+  /* Speaking indicator — small animated dot shown while TTS is reading */
+  .speaking-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 12px 0 4px;
+    min-height: 36px;
+  }
+  .speaking-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: speakPulse 1s ease-in-out infinite;
+  }
+  .speaking-dot:nth-child(2) { animation-delay: 0.2s; }
+  .speaking-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes speakPulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50%       { opacity: 1;   transform: scale(1.2); }
+  }
+
   /* ── Progress bar ────────────────────────────────────────── */
   .progress-row {
     display: flex;
@@ -586,6 +634,12 @@
       <option value="exam">Exam simulation (20 questions)</option>
       <option value="starred">65/20 special (20 starred only)</option>
     </select>
+    <!-- Read aloud toggle — uses the browser's SpeechSynthesis API to
+         read each question out loud before the mic activates, simulating
+         how a real USCIS officer would ask the question -->
+    <button class="btn-tts" id="ttsToggle" onclick="toggleTTS()" title="Read questions out loud">
+      &#128266; Read aloud: <span id="ttsLabel">On</span>
+    </button>
     <button class="btn-restart" onclick="restart()">&#x21BA; Restart</button>
   </div>
 
@@ -962,6 +1016,10 @@ let skipped   = 0;     // running count of skips
 let answered  = false; // true once the current question has been graded
 let transcript = '';   // the text returned by speech recognition
 
+// Text-to-speech state — persists across questions so the user's
+// preference isn't reset every time a new question loads
+let ttsEnabled = true; // read aloud is on by default
+
 // Speech recognition object — created once, reused across questions
 let recognition = null;
 let listening   = false; // true while the mic is actively recording
@@ -1085,6 +1143,8 @@ function buildDeck() {
 // ================================================================
 function restart() {
   stopListening();
+  // Cancel any in-progress speech before rebuilding
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
   showStateInfo();
   buildDeck();
   render();
@@ -1168,10 +1228,115 @@ function checkAnswer(text) {
 }
 
 // ================================================================
-//  SPEECH RECOGNITION SETUP
-//  We create the recognition object lazily (on first mic tap)
-//  because some browsers ask for mic permission at creation time.
+//  TEXT-TO-SPEECH (TTS)
+//  Uses the browser's built-in SpeechSynthesis API to read each
+//  question out loud before the mic activates — simulating how a
+//  real USCIS officer would ask the question.
+//
+//  Flow:
+//  1. render() calls speakQuestion() after building the DOM
+//  2. speakQuestion() shows the animated speaking indicator,
+//     picks the best available English voice, and starts reading
+//  3. When the utterance ends, the indicator is hidden and the
+//     mic activates automatically (if hasMic is true)
+//  4. If TTS is off, the mic activates immediately on render
 // ================================================================
+
+// Toggle read-aloud on/off and update the button appearance
+function toggleTTS() {
+  ttsEnabled = !ttsEnabled;
+  const btn   = document.getElementById('ttsToggle');
+  const label = document.getElementById('ttsLabel');
+  if (btn)   btn.classList.toggle('off', !ttsEnabled);
+  if (label) label.textContent = ttsEnabled ? 'On' : 'Off';
+  // If turning off while currently speaking, stop immediately
+  if (!ttsEnabled) window.speechSynthesis.cancel();
+}
+
+// Pick the best available English voice.
+// Preference order: en-US natural/neural > en-US > en-GB > any English
+function getBestVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  // Try to find a natural-sounding US English voice first
+  const preferred = voices.find(v =>
+    v.lang === 'en-US' && (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Samantha') || v.name.includes('Alex'))
+  );
+  if (preferred) return preferred;
+  // Fall back to any en-US voice
+  const usVoice = voices.find(v => v.lang === 'en-US');
+  if (usVoice) return usVoice;
+  // Fall back to any English voice
+  return voices.find(v => v.lang.startsWith('en')) || null;
+}
+
+// Read the current question out loud, then activate the mic when done.
+// Shows an animated "speaking" indicator while the question is being read.
+function speakQuestion(questionText) {
+  if (!ttsEnabled || !window.speechSynthesis) {
+    // TTS off or not supported — just show the mic immediately
+    activateMicAfterSpeech();
+    return;
+  }
+
+  // Cancel any previous speech (e.g. user hit Restart mid-sentence)
+  window.speechSynthesis.cancel();
+
+  // Show the animated speaking indicator in place of the mic area
+  const micArea = document.getElementById('micArea');
+  if (micArea) {
+    micArea.innerHTML = `
+      <div class="speaking-indicator">
+        <div class="speaking-dot"></div>
+        <div class="speaking-dot"></div>
+        <div class="speaking-dot"></div>
+        <span>Reading question&hellip;</span>
+      </div>`;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(questionText);
+
+  // Slightly slower than default — easier to follow for non-native speakers
+  utterance.rate   = 0.88;
+  utterance.pitch  = 1.0;
+  utterance.volume = 1.0;
+
+  // Apply best available voice (may be null on some browsers, which is fine)
+  const voice = getBestVoice();
+  if (voice) utterance.voice = voice;
+
+  // When the question finishes being read, restore the mic UI and activate
+  utterance.onend = () => {
+    if (!answered) activateMicAfterSpeech();
+  };
+
+  // If something goes wrong with TTS, fall through to mic normally
+  utterance.onerror = () => {
+    if (!answered) activateMicAfterSpeech();
+  };
+
+  // Chrome has a known bug where speech synthesis stalls on long pages.
+  // This keep-alive nudge prevents it from silently stopping mid-sentence.
+  window.speechSynthesis.speak(utterance);
+  const keepAlive = setInterval(() => {
+    if (!window.speechSynthesis.speaking) { clearInterval(keepAlive); return; }
+    window.speechSynthesis.pause();
+    window.speechSynthesis.resume();
+  }, 10000);
+}
+
+// Restore the mic button UI and optionally auto-start listening.
+// Called after TTS finishes (or immediately if TTS is off).
+function activateMicAfterSpeech() {
+  const micArea = document.getElementById('micArea');
+  if (!micArea || !hasMic) return;
+  // Restore the full mic UI
+  micArea.innerHTML = `
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()" aria-label="Toggle microphone">
+      ${svgMic()}
+    </button>
+    <div class="transcript placeholder" id="transcriptBox">Tap the mic and speak your answer</div>
+    <span class="mic-hint">Tap once to start &middot; tap again to stop &amp; check</span>`;
+}
 function setupRecognition() {
   if (!hasMic) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1281,6 +1446,7 @@ function submitAnswer() {
 // User pressed Skip — mark as skipped and show the answer
 function skipQuestion() {
   if (answered) return;
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
   stopListening();
   answered = true;
   skipped++;
@@ -1353,6 +1519,8 @@ function updateScoreDisplay() {
 
 // Advance to the next question (or summary if deck is finished)
 function nextQuestion() {
+  // Stop any speech still playing before moving on
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
   idx++;
   answered  = false;
   transcript = '';
@@ -1442,6 +1610,12 @@ function render() {
       <button class="btn btn-muted" onclick="skipQuestion()">Skip this question</button>
     </div>
   `;
+
+  // After the DOM is ready, read the question out loud if TTS is enabled.
+  // speakQuestion() will restore the mic UI and activate it when done.
+  if (hasMic && ttsEnabled) {
+    speakQuestion(q.q);
+  }
 }
 
 // ================================================================
