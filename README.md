@@ -20,6 +20,7 @@ Built by [mikelobocyber](https://github.com/mikelobocyber).
 - **Exam simulation mode** — 20 random questions, no skipping, no answer reveals, real pass/fail threshold (12/20 correct)
 - **Score tracking** — live correct/wrong/skipped counters and a progress bar
 - **End-of-quiz summary** — shows your score and whether you would pass
+- **Read aloud** — the app reads each question out loud before the mic activates, simulating how a real officer asks the question. Toggle it on or off anytime.
 - **Works on phones** — responsive layout, large tap targets, tested on iOS and Android
 
 ---
@@ -67,6 +68,18 @@ A few specific reasons this matters:
 **The interview is not a hostile environment, but it is formal.** An officer is watching you and writing things down. That alone is enough to rattle someone who has never practiced being heard. Speaking your answers out loud, even to an app, even alone in your kitchen, builds the habit of producing answers when someone is paying attention.
 
 The goal isn't to memorize sentences word for word. It's to get to a point where the answers come naturally — where you don't have to think hard, you just know it. That only happens through repetition, and repetition has to be spoken, not silent.
+
+---
+
+## Read aloud mode
+
+When read aloud is turned on (the default), the app reads each question out loud before the mic activates. Three animated dots appear while it's speaking, then the mic button appears and you answer — the same sequence as a real interview where the officer asks and then waits.
+
+This matters more than it might seem. Hearing the question spoken forces you to process it as audio rather than text, which is exactly what happens in the interview room. Questions like "What does 'We the People' mean?" or "Name two important ideas from the Declaration of Independence and the U.S. Constitution" sound and feel different when you hear them than when you read them.
+
+The read aloud button sits in the controls bar at the top. Tap it to toggle off if you want to practice reading the questions yourself instead.
+
+The app picks the best available English voice on your device automatically, slightly slower than the default reading speed so it's easier to follow.
 
 ---
 
