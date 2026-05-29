@@ -533,6 +533,89 @@
     margin-bottom: 20px;
   }
 
+  /* ── End-of-quiz expandable review ──────────────────────────
+     The correct/wrong/skipped stat boxes are clickable.
+     Tapping one expands a list of questions below it showing
+     what the user said vs the correct answer. */
+  .stat-box {
+    padding: 14px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: opacity 0.15s;
+    user-select: none;
+  }
+  .stat-box:hover { opacity: 0.85; }
+  .stat-box.sc { background: var(--accent-light); }
+  .stat-box.sw { background: var(--red-light); }
+  .stat-box.ss { background: #F3F4F6; }
+  .stat-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-box.sc .stat-num { color: var(--accent-text); }
+  .stat-box.sw .stat-num { color: var(--red-text); }
+  .stat-box.ss .stat-num { color: #374151; }
+  .stat-lbl { font-size: 12px; }
+  .stat-box.sc .stat-lbl { color: #1B6340; }
+  .stat-box.sw .stat-lbl { color: #991B1B; }
+  .stat-box.ss .stat-lbl { color: #6B7280; }
+  /* Small chevron hint that the box is tappable */
+  .stat-chevron {
+    font-size: 10px;
+    margin-top: 4px;
+    opacity: 0.5;
+  }
+
+  /* Expandable review panel — slides open below the stat grid */
+  .review-panel {
+    display: none;
+    margin-top: 16px;
+    text-align: left;
+  }
+  .review-panel.open { display: block; }
+  .review-panel-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 12px;
+  }
+  .review-row {
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .review-q-num {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 4px;
+  }
+  .review-q-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .review-said {
+    font-size: 12px;
+    color: var(--red-text);
+    margin-bottom: 3px;
+  }
+  .review-said.ok { color: #1B6340; }
+  .review-correct-ans {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
   /* ── Footer ─────────────────────────────────────────────── */
   footer {
     margin-top: 48px;
@@ -1238,6 +1321,10 @@ let skipped   = 0;     // running count of skips
 let answered  = false; // true once the current question has been graded
 let transcript = '';   // the text returned by speech recognition
 
+// history[] stores one entry per question so the summary screen
+// can show what the user said vs what the right answer was
+let history   = [];    // { q, said, result: 'correct'|'wrong'|'skip' }
+
 // Text-to-speech state — persists across questions so the user's
 // preference isn't reset every time a new question loads
 let ttsEnabled = true; // read aloud is on by default
@@ -1354,7 +1441,7 @@ function buildDeck() {
   }
 
   // Reset all session state
-  idx = 0; correct = 0; wrong = 0; skipped = 0; answered = false; transcript = '';
+  idx = 0; correct = 0; wrong = 0; skipped = 0; answered = false; transcript = ''; history = [];
 }
 
 // ================================================================
@@ -1662,6 +1749,12 @@ function submitAnswer() {
   answered = true;
   const ok = checkAnswer(transcript);
   if (ok) correct++; else wrong++;
+  // Record this question's result for the end-of-quiz review
+  history.push({
+    q:      deck[idx],
+    said:   transcript,
+    result: ok ? 'correct' : 'wrong'
+  });
   renderResult(ok ? 'correct' : 'wrong');
 }
 
@@ -1672,6 +1765,12 @@ function skipQuestion() {
   stopListening();
   answered = true;
   skipped++;
+  // Record the skip in history too
+  history.push({
+    q:      deck[idx],
+    said:   '',
+    result: 'skip'
+  });
   renderResult('skip');
 }
 
@@ -1844,8 +1943,6 @@ function render() {
 //  SUMMARY SCREEN — shown after all questions in the deck are done
 // ================================================================
 function renderSummary() {
-  // Quiz is over — restore the state info panel so the user can
-  // review or change their state before trying again
   showStateInfo();
 
   const total  = correct + wrong + skipped;
@@ -1853,13 +1950,8 @@ function renderSummary() {
   const mode   = document.getElementById('modeSelect').value;
   const isExam = mode === 'exam';
 
-  // Exam mode uses the real USCIS threshold: 12 out of 20 correct to pass.
-  // All other modes use 60% as a general guide.
-  // 65/20 mode threshold is also 60% (6 out of 10).
   let passed, passLine;
-
   if (isExam) {
-    // Real test: 20 questions, need 12 correct
     passed = correct >= 12;
     passLine = passed
       ? `<div class="pass-badge">&#10003; You passed! ${correct}/20 correct (need 12)</div><br>`
@@ -1875,10 +1967,56 @@ function renderSummary() {
          </p>`;
   }
 
-  // In exam mode we tracked wrong answers but not skipped (no skip button),
-  // so only show the skipped stat in non-exam modes
+  // Separate history into buckets so each stat box expands its own list
+  const correctItems  = history.filter(h => h.result === 'correct');
+  const wrongItems    = history.filter(h => h.result === 'wrong');
+  const skippedItems  = history.filter(h => h.result === 'skip');
+
+  // Build rows for a given bucket of history entries
+  function buildRows(items) {
+    return items.map(entry => {
+      const accepted = entry.q.a
+        .slice(0, 3)
+        .map(a => a.charAt(0).toUpperCase() + a.slice(1))
+        .join(', ');
+
+      const saidText = entry.result === 'skip'
+        ? 'You skipped this question'
+        : entry.said
+          ? `You said: &ldquo;${entry.said}&rdquo;`
+          : 'You said: (nothing heard)';
+
+      const saidClass = entry.result === 'correct' ? 'review-said ok' : 'review-said';
+
+      return `
+        <div class="review-row">
+          <div class="review-q-num">Question ${entry.q.n}</div>
+          <div class="review-q-text">${entry.q.q}</div>
+          <div class="${saidClass}">${saidText}</div>
+          ${entry.result !== 'correct'
+            ? `<div class="review-correct-ans">Correct answer: ${accepted}</div>`
+            : ''}
+        </div>`;
+    }).join('');
+  }
+
+  // Stat box — clickable to expand/collapse its review panel
+  function statBox(cls, num, label, panelId, rows) {
+    if (num === 0) return `
+      <div class="stat-box ${cls}" style="cursor:default;">
+        <div class="stat-num">${num}</div>
+        <div class="stat-lbl">${label}</div>
+      </div>`;
+    return `
+      <div class="stat-box ${cls}" onclick="toggleReview('${panelId}')">
+        <div class="stat-num">${num}</div>
+        <div class="stat-lbl">${label}</div>
+        <div class="stat-chevron">tap to review &#9660;</div>
+      </div>`;
+  }
+
   const skipStat = !isExam
-    ? `<div class="stat-box ss"><div class="stat-num">${skipped}</div><div class="stat-lbl">Skipped</div></div>`
+    ? statBox('ss', skipped, 'Skipped', 'reviewSkip', buildRows(skippedItems))
     : '';
 
   const gridCols = isExam ? '1fr 1fr' : '1fr 1fr 1fr';
@@ -1889,22 +2027,41 @@ function renderSummary() {
       <div class="summary-pct">${isExam ? correct + '/20' : pct + '%'}</div>
       <div class="summary-sub">${correct} of ${total} answered correctly</div>
       ${passLine}
+
       <div class="summary-grid" style="grid-template-columns:${gridCols}">
-        <div class="stat-box sc">
-          <div class="stat-num">${correct}</div>
-          <div class="stat-lbl">Correct</div>
-        </div>
-        <div class="stat-box sw">
-          <div class="stat-num">${wrong}</div>
-          <div class="stat-lbl">Wrong</div>
-        </div>
+        ${statBox('sc', correct, 'Correct', 'reviewCorrect', buildRows(correctItems))}
+        ${statBox('sw', wrong,   'Wrong',   'reviewWrong',   buildRows(wrongItems))}
         ${skipStat}
       </div>
-      <button class="btn btn-primary" style="max-width:220px;margin:0 auto;" onclick="restart()">
-        &#x21BA; Try again
-      </button>
+
+      <!-- Review panels — one per result type, hidden until tapped -->
+      ${correctItems.length  ? `<div class="review-panel" id="reviewCorrect"><div class="review-panel-title">&#10003; Correct answers</div>${buildRows(correctItems)}</div>` : ''}
+      ${wrongItems.length    ? `<div class="review-panel" id="reviewWrong"><div class="review-panel-title">&#10007; Wrong answers</div>${buildRows(wrongItems)}</div>` : ''}
+      ${skippedItems.length  ? `<div class="review-panel" id="reviewSkip"><div class="review-panel-title">&#8212; Skipped</div>${buildRows(skippedItems)}</div>` : ''}
+
+      <div style="margin-top:20px;">
+        <button class="btn btn-primary" style="max-width:220px;margin:0 auto;" onclick="restart()">
+          &#x21BA; Try again
+        </button>
+      </div>
     </div>
   `;
+}
+
+// Toggle a review panel open/closed when the user taps a stat box
+function toggleReview(panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  // Close all other panels first so only one is open at a time
+  ['reviewCorrect','reviewWrong','reviewSkip'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && id !== panelId) el.classList.remove('open');
+  });
+  panel.classList.toggle('open');
+  // Scroll the panel into view if opening
+  if (panel.classList.contains('open')) {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 // ================================================================
